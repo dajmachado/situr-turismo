@@ -1,0 +1,29 @@
+{
+  "name": "situr-turismo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "framer-motion": "^12.16.0",
+    "lenis": "^1.3.4",
+    "lucide-react": "^0.514.0",
+    "next": "^15.3.3",
+    "nodemailer": "^9.0.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.8",
+    "@types/node": "^22.15.0",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.8",
+    "typescript": "^5.8.3"
+  }
+}

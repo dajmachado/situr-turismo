@@ -1,0 +1,296 @@
+[
+  {
+    "id": "trip-oktoberfest",
+    "slug": "excursao-oktoberfest-2026",
+    "title": "Excursão Oktoberfest",
+    "destination": "Blumenau — SC",
+    "date": "17/10/2026",
+    "duration": "1 dia (bate e volta)",
+    "price": 150,
+    "installments": "Apenas R$ 150,00 por pessoa (à vista Pix) , ou Pagamento facilitado em até 12x (é adicionado taxa do cartão).",
+    "spotsTotal": 92,
+    "spotsLeft": 38,
+    "busModel": "exec46",
+    "busCount": 2,
+    "shortDescription": "Viva a magia da maior festa alemã das Américas com todo o conforto e segurança da SITUR.",
+    "description": "A Oktoberfest de Blumenau é uma experiência única: música, gastronomia típica alemã, desfiles e a atmosfera vibrante da Vila Germânica. Nossa excursão inclui transporte em ônibus executivo, guia acompanhante, ingresso para o parque e paradas estratégicas para você aproveitar cada momento sem preocupação.",
+    "coverImage": "/uploads/mrfpzfyqiop65s.webp",
+    "gallery": [
+      "/uploads/mrgi1h9ox1tx49.webp"
+    ],
+    "hotel": {
+      "name": "Sem hospedagem (bate e volta)",
+      "description": "Esta é uma excursão de um dia. Saída de madrugada e retorno na mesma noite, com todo o conforto do nosso ônibus executivo com poltronas reclináveis, ar-condicionado e Wi-Fi."
+    },
+    "included": [
+      "Transporte em ônibus semi-leito",
+      "Guia acompanhante credenciado",
+      "Kit lanche de bordo"
+    ],
+    "notIncluded": [
+      "Bebidas e consumo dentro do parque",
+      "Compras pessoais e souvenirs"
+    ],
+    "mapEmbedUrl": "https://www.google.com/maps?q=Parque+Vila+Germanica,+Blumenau,+SC&output=embed",
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "Blumenau — Oktoberfest",
+        "city": "Blumenau, Santa Catarina",
+        "description": "Um dia inteiro dedicado à maior festa alemã das Américas, na charmosa Vila Germânica.",
+        "activities": [
+          {
+            "time": "07h45",
+            "title": "Embarque Palhoça",
+            "description": "Encontro no ponto de embarque. Acomodação no ônibus executivo, kit lanche de boas-vindas e saída pontual."
+          },
+          {
+            "time": "08h",
+            "title": "Saída do Roçado",
+            "description": "Encontro no ponto de embarque. Acomodação no ônibus executivo, kit lanche de boas-vindas e saída pontual."
+          },
+          {
+            "time": "11h",
+            "title": "Chegada a Blumenau",
+            "description": "Entrada gratuita no pavilhão até as 13 horas.",
+            "image": "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?q=80&w=1200&auto=format&fit=crop"
+          },
+          {
+            "time": "19h",
+            "title": "Retorno",
+            "description": "Encontro do grupo no ponto combinado e embarque para retorno, com chegada prevista às 21:30."
+          }
+        ],
+        "notes": "Leve documento com foto, roupas confortáveis e agasalho para a noite. Traje típico é bem-vindo e deixa a festa ainda mais divertida!",
+        "mapEmbedUrl": "https://www.google.com/maps?q=Parque+Vila+Germanica,+Blumenau,+SC&output=embed"
+      }
+    ],
+    "faq": [
+      {
+        "question": "O ingresso da Oktoberfest está incluso?",
+        "answer": "Entrada até as 13 horas é gratuita"
+      },
+      {
+        "question": "Crianças podem participar?",
+        "answer": "Sim, a festa é para toda a família. Menores de idade devem estar acompanhados dos pais ou responsáveis legais, com documentação."
+      },
+      {
+        "question": "Posso levar bebidas no ônibus?",
+        "answer": "É permitido o consumo de bebidas alcoólicas durante o trajeto, por segurança de todos os passageiros."
+      },
+      {
+        "question": "Como funciona o pagamento?",
+        "answer": "Dinheiro, Pix ou parcelar em até 3x  cartão de crédito + taxas, ."
+      }
+    ],
+    "featured": true
+  },
+  {
+    "id": "trip-fazzenda",
+    "slug": "excursao-fazzenda-park-hotel",
+    "title": "Excursão Fazzenda Park Hotel",
+    "destination": "Gaspar — SC",
+    "date": "23/04/2027",
+    "duration": "3 dias / 2 noites",
+    "price": 2600,
+    "installments": "R$ 2600,00 à vista ou pagamento facilitado em 12 vezes (taxas do cartão serão adicionadas)",
+    "spotsTotal": 46,
+    "spotsLeft": 23,
+    "shortDescription": "Três dias de puro relaxamento em um dos resorts mais premiados do Brasil, com pensão completa.",
+    "description": "O Fazzenda Park Hotel é sinônimo de descanso em meio à natureza: mais de 1 milhão de m² de mata preservada, piscinas térmicas, tirolesa, cavalgada, recreação para todas as idades e gastronomia de primeira. Nossa excursão inclui transporte, passeio na cidade de Brusque, almoço na FIP no restauranmte Panelaço hospedagem com pensão completa e acompanhamento exclusivo da equipe SITUR.",
+    "coverImage": "/uploads/mrfqjdwcj5zqap.webp",
+    "gallery": [
+      "/uploads/mrgi1u57cdi2z6.webp"
+    ],
+    "hotel": {
+      "name": "Fazzenda Park Hotel",
+      "description": "Resort premiado em Gaspar/SC com pensão completa: café da manhã, almoço e jantar em sistema de buffet, piscinas cobertas e aquecidas, atividades de aventura e recreação monitorada o dia todo.",
+      "image": "https://images.unsplash.com/photo-1582719508461-905c673771fd?q=80&w=1200&auto=format&fit=crop"
+    },
+    "included": [
+      "Transporte em ônibus executivo com Wi-Fi",
+      "2 noites de hospedagem no Fazzenda Park Hotel",
+      "Pensão completa (café, almoço e jantar)",
+      "Acesso a todas as áreas de lazer do resort",
+      "Recreação e atividades monitoradas",
+      "Guia acompanhante SITUR",
+      "Seguro viagem"
+    ],
+    "notIncluded": [
+      "Bebidas durante as refeições",
+      "Atividades pagas à parte (spa, quadriciclo)",
+      "Despesas de caráter pessoal"
+    ],
+    "mapEmbedUrl": "https://www.google.com/maps?q=Fazzenda+Park+Hotel,+Gaspar,+SC&output=embed",
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "Chegada e boas-vindas",
+        "city": "Gaspar, Santa Catarina",
+        "description": "Saída pela manhã e chegada ao resort para o almoço, com tarde livre para explorar a estrutura.",
+        "activities": [
+          {
+            "time": "07h00",
+            "title": "Embarque e saída",
+            "description": "Encontro no ponto de embarque com a equipe SITUR e saída em ônibus executivo."
+          },
+          {
+            "time": "11h30",
+            "title": "Chegada e check-in",
+            "description": "Recepção com welcome drink e acomodação nos apartamentos.",
+            "image": "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=1200&auto=format&fit=crop"
+          },
+          {
+            "time": "12h30",
+            "title": "Almoço no restaurante do resort",
+            "description": "Buffet completo com culinária regional e internacional."
+          },
+          {
+            "time": "14h00",
+            "title": "Tarde livre nas piscinas",
+            "description": "Aproveite o complexo de piscinas térmicas cobertas e ao ar livre.",
+            "image": "https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=1200&auto=format&fit=crop"
+          },
+          {
+            "time": "20h00",
+            "title": "Jantar e noite de integração",
+            "description": "Jantar buffet seguido de música ao vivo no lobby bar."
+          }
+        ],
+        "notes": "Não esqueça roupa de banho, protetor solar e repelente.",
+        "mapEmbedUrl": "https://www.google.com/maps?q=Fazzenda+Park+Hotel,+Gaspar,+SC&output=embed"
+      },
+      {
+        "day": 2,
+        "title": "Dia de aventura e natureza",
+        "city": "Gaspar, Santa Catarina",
+        "description": "Dia inteiro para aproveitar as atividades de aventura e a natureza do resort.",
+        "activities": [
+          {
+            "time": "08h00",
+            "title": "Café da manhã colonial",
+            "description": "Buffet de café da manhã com delícias coloniais da região."
+          },
+          {
+            "time": "09h30",
+            "title": "Trilha ecológica e tirolesa",
+            "description": "Atividades de aventura em meio à mata preservada, com monitores especializados.",
+            "image": "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1200&auto=format&fit=crop"
+          },
+          {
+            "time": "12h30",
+            "title": "Almoço",
+            "description": "Buffet no restaurante principal."
+          },
+          {
+            "time": "15h00",
+            "title": "Cavalgada e fazendinha",
+            "description": "Passeio a cavalo e visita à fazendinha com animais — diversão garantida para as crianças."
+          },
+          {
+            "time": "20h00",
+            "title": "Jantar temático e show",
+            "description": "Noite especial com jantar temático e apresentação cultural."
+          }
+        ],
+        "notes": "Use calçados fechados para as atividades de trilha e cavalgada."
+      },
+      {
+        "day": 3,
+        "title": "Manhã livre e retorno",
+        "city": "Gaspar, Santa Catarina",
+        "description": "Última manhã para aproveitar o resort antes do retorno.",
+        "activities": [
+          {
+            "time": "08h00",
+            "title": "Café da manhã",
+            "description": "Último café da manhã no resort."
+          },
+          {
+            "time": "09h30",
+            "title": "Manhã livre",
+            "description": "Piscinas, caminhadas ou simplesmente descansar na rede com vista para o vale."
+          },
+          {
+            "time": "12h00",
+            "title": "Almoço e check-out",
+            "description": "Almoço de despedida e liberação dos apartamentos."
+          },
+          {
+            "time": "14h00",
+            "title": "Embarque para retorno",
+            "description": "Saída do resort com chegada prevista para o início da noite."
+          }
+        ],
+        "notes": "Horário de chegada pode variar conforme o trânsito."
+      }
+    ],
+    "faq": [
+      {
+        "question": "As refeições estão inclusas?",
+        "answer": "Sim! O pacote inclui pensão completa: café da manhã, almoço e jantar durante toda a estadia. Bebidas são pagas à parte."
+      },
+      {
+        "question": "O quarto é individual ou compartilhado?",
+        "answer": "Os apartamentos são duplos, triplos ou quádruplos. Consulte valores para acomodação individual."
+      },
+      {
+        "question": "Crianças pagam?",
+        "answer": "Crianças de até 4 anos não pagam. De 5 a 11 anos têm desconto de 50% acompanhadas de dois adultos pagantes."
+      },
+      {
+        "question": "Posso cancelar minha reserva?",
+        "answer": "Cancelamentos até 30 dias antes da viagem têm reembolso integral. Consulte nossa política completa de cancelamento."
+      }
+    ],
+    "featured": true
+  },
+  {
+    "id": "trip-beto-carrero",
+    "slug": "excursao-piratuba",
+    "title": "Excursão Piratuba",
+    "destination": "Piratuba — SC",
+    "date": "31/07/2027",
+    "duration": "3 dias e 2 noites",
+    "price": 1800,
+    "installments": "R$ 1800,00 à vista ou pagamento facilitado em até 12x no cartão (taxas do cartão serão adicionadas)",
+    "spotsTotal": 46,
+    "spotsLeft": 27,
+    "shortDescription": "Relaxe nas famosas águas termais de Piratuba e desfrute de 3 dias inesquecíveis com hospedagem no Hotel Tirolesa, conforto, lazer e momentos especiais.",
+    "description": "Descubra o encanto de Piratuba em uma viagem cuidadosamente preparada pela SITUR. Serão 3 dias e 2 noites de descanso, lazer e bem-estar, hospedado no tradicional Hotel Tirolesa, referência em conforto e hospitalidade na região. Aproveite as famosas águas termais, uma excelente estrutura de lazer, gastronomia de qualidade e momentos de tranquilidade em um dos destinos mais procurados de Santa Catarina.\n\nViaje com segurança, conforto e acompanhamento durante todo o roteiro, deixando toda a organização por conta da SITUR. Uma experiência perfeita para renovar as energias, criar boas lembranças e aproveitar dias inesquecíveis ao lado de quem você ama.",
+    "coverImage": "/uploads/mrfu1mt90ms79v.webp",
+    "gallery": [
+      "/uploads/mrgi29a34ht7ey.webp"
+    ],
+    "hotel": {
+      "name": "Hotel Tirolesa",
+      "description": "O Hotel Tirolesa une tradição, conforto e uma estrutura completa de lazer, proporcionando uma estadia acolhedora a poucos passos das famosas águas termais de Piratuba.",
+      "image": "/uploads/mrfuc4scqzu3l7.webp"
+    },
+    "included": [
+      "Transporte em ônibus executivo com Wi-Fi",
+      "Ingresso para o Beto Carrero World",
+      "Guia acompanhante SITUR",
+      "Kit lanche de bordo",
+      "Seguro viagem"
+    ],
+    "notIncluded": [
+      "Alimentação dentro do parque",
+      "Fast pass e atrações pagas à parte",
+      "Compras pessoais"
+    ],
+    "mapEmbedUrl": "https://www.google.com/maps?q=hotel+tirolesa,+Piratuba,+SC&output=embed",
+    "itinerary": [],
+    "faq": [
+      {
+        "question": "O ingresso do parque está incluso?",
+        "answer": "Sim, o ingresso de dia inteiro para o Beto Carrero World está incluso no valor."
+      },
+      {
+        "question": "Posso levar comida para o parque?",
+        "answer": "O parque não permite entrada com alimentos, exceto itens para bebês e dietas especiais com comprovação."
+      }
+    ],
+    "featured": true
+  }
+]

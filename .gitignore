@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.env*.local
+*.tsbuildinfo
+next-env.d.ts
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Dados reais de cliente (PII + session token) — nunca versionar
+data/customers.json
+data/reservations.json
+data/manual-bookings.json
+data/expenses.json

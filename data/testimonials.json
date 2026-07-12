@@ -1,0 +1,50 @@
+[
+  {
+    "id": "test-1",
+    "name": "Mariana Souza",
+    "avatar": "https://randomuser.me/api/portraits/women/44.jpg",
+    "rating": 5,
+    "text": "Melhor excursão que já fiz! Ônibus impecável, guia super atencioso e tudo funcionou como o combinado. Já reservei a próxima!",
+    "trip": "Oktoberfest 2025"
+  },
+  {
+    "id": "test-2",
+    "name": "Carlos Eduardo Lima",
+    "avatar": "https://randomuser.me/api/portraits/men/32.jpg",
+    "rating": 5,
+    "text": "Viajei com minha família para o Fazzenda e foi perfeito. As crianças amaram e nós descansamos de verdade. Equipe SITUR nota 10.",
+    "trip": "Fazzenda Park Hotel"
+  },
+  {
+    "id": "test-3",
+    "name": "Ana Paula Ferreira",
+    "avatar": "https://randomuser.me/api/portraits/women/68.jpg",
+    "rating": 5,
+    "text": "Empresa séria e organizada. O roteiro interativo no site me ajudou a planejar cada dia da viagem. Recomendo de olhos fechados.",
+    "trip": "Beto Carrero World"
+  },
+  {
+    "id": "test-4",
+    "name": "Roberto Martins",
+    "avatar": "https://randomuser.me/api/portraits/men/52.jpg",
+    "rating": 5,
+    "text": "Atendimento humanizado do começo ao fim. Responderam todas as minhas dúvidas no WhatsApp em minutos. Viagem tranquila e segura.",
+    "trip": "Oktoberfest 2025"
+  },
+  {
+    "id": "test-5",
+    "name": "Juliana Castro",
+    "avatar": "https://randomuser.me/api/portraits/women/12.jpg",
+    "rating": 5,
+    "text": "O parcelamento facilitou muito. Paguei em 10x e viajei sem pesar no bolso. A SITUR pensa em tudo!",
+    "trip": "Fazzenda Park Hotel"
+  },
+  {
+    "id": "test-6",
+    "name": "Fernando Oliveira",
+    "avatar": "https://randomuser.me/api/portraits/men/76.jpg",
+    "rating": 5,
+    "text": "Já são 5 viagens com a SITUR e nunca tive um problema. Pontualidade, conforto e muita atenção com os passageiros.",
+    "trip": "Cliente fiel"
+  }
+]
