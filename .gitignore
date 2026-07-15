@@ -1,14 +1,23 @@
 node_modules
 .next
 out
+.env
 .env*.local
 *.tsbuildinfo
 next-env.d.ts
 public/uploads/*
 !public/uploads/.gitkeep
 
-# Dados reais de cliente (PII + session token) — nunca versionar
-data/customers.json
-data/reservations.json
-data/manual-bookings.json
-data/expenses.json
+# Banco de dados (SQLite) — contém dados reais de cliente, nunca versionar.
+# O schema/migrations em prisma/ continuam versionados normalmente.
+prisma/situr.db
+prisma/situr.db-journal
+prisma/situr.db-wal
+prisma/situr.db-shm
+
+# Cliente Prisma gerado (regenerado via "postinstall": "prisma generate")
+/generated/prisma
+
+# data/*.json não é mais a fonte de verdade (ver prisma/) — os arquivos
+# continuam no disco como referência/fallback, só saem do controle de versão.
+data/*.json

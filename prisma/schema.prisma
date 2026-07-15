@@ -1,0 +1,132 @@
+// SITUR Turismo — schema do banco (SQLite). Ver lib/db.ts para o mapeamento
+// linha↔tipo (campos "xxxJson" guardam arrays/objetos aninhados como texto
+// JSON, sem usar o tipo Json nativo do Prisma — ver plano da migração).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Trip {
+  id               String  @id
+  slug             String  @unique
+  title            String
+  destination      String
+  date             String
+  duration         String
+  price            Float
+  installments     String
+  spotsTotal       Int
+  spotsLeft        Int
+  shortDescription String
+  description      String
+  coverImage       String
+  galleryJson      String
+  hotelJson        String?
+  includedJson     String
+  notIncludedJson  String
+  mapEmbedUrl      String?
+  itineraryJson    String
+  faqJson          String
+  featured         Boolean @default(false)
+  busModel         String?
+  busCount         Int?
+  blockedSeatsJson String?
+}
+
+model Banner {
+  id       String  @id
+  title    String
+  subtitle String
+  price    String?
+  image    String
+  tripSlug String?
+  order    Int
+}
+
+model GalleryItem {
+  id       String  @id
+  image    String
+  caption  String?
+  tripSlug String?
+  cover    Boolean @default(false)
+}
+
+model Testimonial {
+  id     String @id
+  name   String
+  avatar String
+  rating Int
+  text   String
+  trip   String?
+}
+
+model Reservation {
+  id                   String  @id
+  tripId               String
+  tripSlug             String
+  tripTitle            String
+  tripDate             String
+  name                 String
+  email                String
+  phone                String
+  passengers           Int
+  seatsJson            String?
+  passengerDetailsJson String?
+  amount               Float
+  transactionId        String?
+  checkoutSlug         String?
+  paymentMethod        String?
+  status               String
+  spotsCounted         Boolean @default(false)
+  createdAt            String
+}
+
+model Customer {
+  id           String  @id
+  name         String
+  email        String
+  phone        String?
+  googleId     String?
+  picture      String?
+  sessionToken String?
+  createdAt    String
+  updatedAt    String
+}
+
+model ManualBooking {
+  id                   String  @id
+  tripId               String
+  buyerName            String
+  phone                String?
+  seatsJson            String
+  passengerDetailsJson String
+  amount               Float
+  paymentMethod        String
+  boardingPoint        String?
+  notes                String?
+  status               String
+  createdAt            String
+  updatedAt            String
+  buyerDocument        String?
+  buyerBirthDate       String?
+  buyerAddress         String?
+  buyerCep             String?
+  installmentsJson     String?
+}
+
+model Expense {
+  id          String  @id
+  tripId      String
+  description String
+  category    String
+  amount      Float
+  date        String?
+  notes       String?
+  createdAt   String
+  updatedAt   String
+}
