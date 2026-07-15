@@ -1,0 +1,14 @@
+node_modules
+.next
+generated
+prisma/situr.db
+prisma/situr.db-journal
+prisma/situr.db-wal
+prisma/situr.db-shm
+data
+.env
+.env.local
+.git
+.idea
+public/uploads/*
+!public/uploads/.gitkeep
