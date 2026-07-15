@@ -11,6 +11,12 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma
 RUN npm ci
 COPY . .
+# generateMetadata() de páginas dinâmicas (ex. /viagens/[slug]) roda durante
+# "Collecting page data" mesmo com dynamic="force-dynamic", e usa lib/db.ts
+# (Prisma) — precisa de um DATABASE_URL válido só pra não quebrar o build; o
+# valor real de produção é injetado depois, em runtime, via env_file.
+ENV DATABASE_URL="file:/tmp/build.db"
+RUN npx prisma migrate deploy
 RUN npm run build
 
 FROM node:20-bookworm-slim AS runner
