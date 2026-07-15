@@ -2,6 +2,11 @@
 # glibc; musl arriscaria cair em compilação nativa dentro do build.
 FROM node:20-bookworm-slim AS builder
 WORKDIR /app
+# better-sqlite3 não achou binário pré-compilado pra essa combinação de
+# plataforma/libc e caiu pra compilar do zero via node-gyp — precisa de
+# python3/make/g++, ausentes na imagem slim por padrão.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
 RUN npm ci
