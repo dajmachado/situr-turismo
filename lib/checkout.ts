@@ -2,7 +2,10 @@ import { getReservations, saveReservations, getTrips, saveTrips } from "./db";
 import { sendReservationConfirmation } from "./notifications";
 import type { Reservation, Trip } from "./types";
 
-const API_BASE = "https://api.infinitepay.io/invoices/public/checkout";
+// InfinitePay migrou os endpoints em 07/2026 (mesmos payloads/webhooks,
+// só a URL base mudou): api.infinitepay.io/invoices/public/checkout/*
+// -> api.checkout.infinitepay.io/*
+const API_BASE = "https://api.checkout.infinitepay.io";
 
 export function isPaymentConfigured(): boolean {
   return Boolean(process.env.INFINITEPAY_HANDLE);
