@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Lock, Eye, EyeOff } from "lucide-react";
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
+  const [visible, setVisible] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -47,14 +48,25 @@ export default function AdminLoginPage() {
             <Lock size={13} />
             Senha de acesso
           </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            autoFocus
-            className="w-full rounded-xl border border-graphite/15 px-4 py-3 text-sm outline-none transition-colors focus:border-rose"
-          />
+          <div className="relative">
+            <input
+              type={visible ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoFocus
+              autoComplete="current-password"
+              className="w-full rounded-xl border border-graphite/15 px-4 py-3 pr-11 text-sm outline-none transition-colors focus:border-rose"
+            />
+            <button
+              type="button"
+              onClick={() => setVisible((v) => !v)}
+              aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-graphite/40 hover:text-graphite"
+            >
+              {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
           {error && <p className="mt-3 text-xs text-rose">{error}</p>}
           <button
             type="submit"

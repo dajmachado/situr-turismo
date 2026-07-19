@@ -130,3 +130,12 @@ model Expense {
   createdAt   String
   updatedAt   String
 }
+
+// Linha única (id fixo "admin") com a senha do painel — ver lib/admin-auth.ts.
+// Enquanto não existir essa linha, o login cai no fallback de
+// process.env.ADMIN_PASSWORD (compatibilidade com deploys existentes).
+model AdminSettings {
+  id           String @id
+  passwordHash String
+  updatedAt    String
+}

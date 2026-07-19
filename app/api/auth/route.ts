@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "situr2026";
+import { verifyAdminPassword } from "@/lib/admin-auth";
 
 export async function POST(request: Request) {
   const { password } = await request.json();
 
-  if (password !== ADMIN_PASSWORD) {
+  if (!(await verifyAdminPassword(password))) {
     return NextResponse.json({ error: "Senha incorreta" }, { status: 401 });
   }
 

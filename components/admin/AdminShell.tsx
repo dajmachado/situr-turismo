@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Menu,
   Store,
+  Settings,
   X,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const links = [
   { href: "/admin/clientes", label: "Clientes", icon: UsersRound },
   { href: "/admin/banners", label: "Banners do Carrossel", icon: GalleryHorizontal },
   { href: "/admin/galeria", label: "Galeria do Site", icon: Images },
+  { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
