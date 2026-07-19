@@ -514,7 +514,7 @@ export default function TripForm({ trip }: { trip?: Trip }) {
                     onClick={() =>
                       setDay(di, {
                         ...day,
-                        activities: [...day.activities, { time: "", title: "" }],
+                        activities: [{ time: "", title: "" }, ...day.activities],
                       })
                     }
                     className="flex items-center gap-2 rounded-xl border border-dashed border-rose/40 px-4 py-2.5 text-xs font-semibold text-rose transition-colors hover:bg-rose/5"
