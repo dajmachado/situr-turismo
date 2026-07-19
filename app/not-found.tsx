@@ -1,5 +1,11 @@
 import Link from "next/link";
 
+// Evita que o Next cacheie estaticamente a resposta 404 — sem isso, um
+// arquivo novo em public/uploads/ (enviado pelo admin em produção) continua
+// retornando 404 em cache até o processo reiniciar, mesmo já existindo em
+// disco.
+export const dynamic = "force-dynamic";
+
 export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-ice px-4 text-center">
