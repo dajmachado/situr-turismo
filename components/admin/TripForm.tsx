@@ -12,6 +12,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import type { Trip, ItineraryDay } from "@/lib/types";
+import { parseActivityTime, sortActivitiesByTime } from "@/lib/utils";
 import { generateBusLayout, BUS_MODELS, type BusModelId } from "@/lib/bus";
 import BusSeatMap from "@/components/checkout/BusSeatMap";
 import CurrencyInput from "@/components/CurrencyInput";
@@ -514,14 +515,20 @@ export default function TripForm({ trip }: { trip?: Trip }) {
                     >
                       <div className="grid gap-3 md:grid-cols-[110px_1fr_auto]">
                         <input
+                          type="time"
                           className={inputClass}
-                          value={act.time ?? ""}
+                          value={parseActivityTime(act.time)}
                           onChange={(e) => {
                             const activities = [...day.activities];
                             activities[ai] = { ...act, time: e.target.value };
                             setDay(di, { ...day, activities });
                           }}
-                          placeholder="Horário"
+                          onBlur={() => {
+                            setDay(di, {
+                              ...day,
+                              activities: sortActivitiesByTime(day.activities),
+                            });
+                          }}
                         />
                         <input
                           className={inputClass}
