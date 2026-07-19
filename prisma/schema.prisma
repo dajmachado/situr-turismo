@@ -117,6 +117,7 @@ model ManualBooking {
   buyerAddress         String?
   buyerCep             String?
   installmentsJson     String?
+  paymentsJson         String?
 }
 
 model Expense {

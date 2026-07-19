@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { getTrips, getReservations, getManualBookings, saveManualBookings } from "@/lib/db";
 import { occupiedSeatsForTrip, validSeatNumbers } from "@/lib/bus";
 import { summarizeInstallments } from "@/lib/installments";
+import { summarizePayments } from "@/lib/payments";
 import { sendReservationConfirmation } from "@/lib/notifications";
 import { withFileLock } from "@/lib/mutex";
 import { newId } from "@/lib/utils";
-import type { ManualBooking, PassengerDetail, PaymentMethod, Installment } from "@/lib/types";
+import type { ManualBooking, PassengerDetail, PaymentMethod, Installment, Payment } from "@/lib/types";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -16,6 +17,7 @@ const METHODS: PaymentMethod[] = [
   "transferencia",
   "cortesia",
   "parcelado",
+  "parcial",
 ];
 
 export async function PUT(request: Request, { params }: Ctx) {
@@ -85,17 +87,37 @@ export async function PUT(request: Request, { params }: Ctx) {
           }))
         : undefined;
 
-    // Num carnê, o status geral é sempre derivado das parcelas.
+    const newAmount =
+      body.amount !== undefined ? Number(body.amount) || 0 : current.amount;
+
+    // "Pagamento parcial" não tem parcelas fixas — só um log de valores
+    // recebidos, abatidos do saldo devedor (ver lib/payments.ts).
+    const payments: Payment[] | undefined =
+      method === "parcial"
+        ? (body.payments ?? current.payments ?? []).map((p) => ({
+            id: p.id || newId(),
+            date: p.date,
+            amount: Number(p.amount) || 0,
+            notes: p.notes,
+          }))
+        : undefined;
+
+    // Num carnê ou pagamento parcial, o status geral é sempre derivado das
+    // parcelas/pagamentos.
     const newStatus =
       method === "parcelado"
         ? summarizeInstallments(installments ?? []).fullyPaid
           ? "pago"
           : "reservado"
-        : body.status === "reservado"
-          ? "reservado"
-          : body.status === "pago"
+        : method === "parcial"
+          ? summarizePayments(newAmount, payments ?? []).fullyPaid
             ? "pago"
-            : current.status;
+            : "reservado"
+          : body.status === "reservado"
+            ? "reservado"
+            : body.status === "pago"
+              ? "pago"
+              : current.status;
 
     manual[index] = {
       ...current,
@@ -103,7 +125,7 @@ export async function PUT(request: Request, { params }: Ctx) {
       phone: body.phone?.trim() ?? current.phone,
       seats,
       passengerDetails,
-      amount: body.amount !== undefined ? Number(body.amount) || 0 : current.amount,
+      amount: newAmount,
       paymentMethod: method,
       boardingPoint: body.boardingPoint?.trim() ?? current.boardingPoint,
       notes: body.notes?.trim() ?? current.notes,
@@ -114,6 +136,7 @@ export async function PUT(request: Request, { params }: Ctx) {
       buyerAddress: body.buyerAddress?.trim() ?? current.buyerAddress,
       buyerCep: body.buyerCep?.trim() ?? current.buyerCep,
       installments: method === "parcelado" ? installments : current.installments,
+      payments: method === "parcial" ? payments : current.payments,
     };
     await saveManualBookings(manual);
 

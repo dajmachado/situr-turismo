@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { getTrips, getReservations, getManualBookings, saveManualBookings } from "@/lib/db";
 import { occupiedSeatsForTrip, validSeatNumbers } from "@/lib/bus";
 import { summarizeInstallments } from "@/lib/installments";
+import { summarizePayments } from "@/lib/payments";
 import { newId } from "@/lib/utils";
 import { sendReservationConfirmation } from "@/lib/notifications";
 import { withFileLock } from "@/lib/mutex";
-import type { ManualBooking, PassengerDetail, PaymentMethod, Installment } from "@/lib/types";
+import type { ManualBooking, PassengerDetail, PaymentMethod, Installment, Payment } from "@/lib/types";
 
 const METHODS: PaymentMethod[] = [
   "dinheiro",
@@ -14,6 +15,7 @@ const METHODS: PaymentMethod[] = [
   "transferencia",
   "cortesia",
   "parcelado",
+  "parcial",
 ];
 
 export async function GET(request: Request) {
@@ -73,16 +75,35 @@ export async function POST(request: Request) {
         }))
       : undefined;
 
-  // Num carnê, o status geral é derivado das parcelas — nunca confiamos no
-  // que o cliente manda para esse campo quando o método é "parcelado".
+  const bookingAmount = Number(body.amount) || 0;
+
+  // "Pagamento parcial" não tem parcelas fixas — só um log de valores
+  // recebidos, abatidos do saldo devedor (ver lib/payments.ts).
+  const payments: Payment[] | undefined =
+    method === "parcial" && body.payments?.length
+      ? body.payments.map((p) => ({
+          id: p.id || newId(),
+          date: p.date,
+          amount: Number(p.amount) || 0,
+          notes: p.notes,
+        }))
+      : undefined;
+
+  // Num carnê ou pagamento parcial, o status geral é derivado das
+  // parcelas/pagamentos — nunca confiamos no que o cliente manda nesse
+  // campo pra esses dois métodos.
   const status =
     method === "parcelado"
       ? summarizeInstallments(installments ?? []).fullyPaid
         ? "pago"
         : "reservado"
-      : body.status === "reservado"
-        ? "reservado"
-        : "pago";
+      : method === "parcial"
+        ? summarizePayments(bookingAmount, payments ?? []).fullyPaid
+          ? "pago"
+          : "reservado"
+        : body.status === "reservado"
+          ? "reservado"
+          : "pago";
 
   const now = new Date().toISOString();
   const booking: ManualBooking = {
@@ -92,7 +113,7 @@ export async function POST(request: Request) {
     phone: body.phone?.trim() || undefined,
     seats,
     passengerDetails,
-    amount: Number(body.amount) || 0,
+    amount: bookingAmount,
     paymentMethod: method,
     boardingPoint: body.boardingPoint?.trim() || undefined,
     notes: body.notes?.trim() || undefined,
@@ -104,6 +125,7 @@ export async function POST(request: Request) {
     buyerAddress: body.buyerAddress?.trim() || undefined,
     buyerCep: body.buyerCep?.trim() || undefined,
     installments,
+    payments,
   };
 
   // Trava a escrita do arquivo para não perder alterações concorrentes

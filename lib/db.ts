@@ -305,6 +305,7 @@ function manualBookingFromRow(row: {
   buyerAddress: string | null;
   buyerCep: string | null;
   installmentsJson: string | null;
+  paymentsJson: string | null;
 }): ManualBooking {
   return {
     id: row.id,
@@ -325,6 +326,7 @@ function manualBookingFromRow(row: {
     buyerAddress: row.buyerAddress ?? undefined,
     buyerCep: row.buyerCep ?? undefined,
     installments: row.installmentsJson ? JSON.parse(row.installmentsJson) : undefined,
+    payments: row.paymentsJson ? JSON.parse(row.paymentsJson) : undefined,
   };
 }
 
@@ -348,6 +350,7 @@ function manualBookingToRow(b: ManualBooking) {
     buyerAddress: b.buyerAddress ?? null,
     buyerCep: b.buyerCep ?? null,
     installmentsJson: b.installments ? JSON.stringify(b.installments) : null,
+    paymentsJson: b.payments ? JSON.stringify(b.payments) : null,
   };
 }
 

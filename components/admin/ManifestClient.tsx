@@ -23,6 +23,7 @@ import type {
   ManualBooking,
   PaymentMethod,
   Installment,
+  Payment,
 } from "@/lib/types";
 import { PAYMENT_METHOD_LABELS } from "@/lib/types";
 import type { BusLayout } from "@/lib/bus";
@@ -31,6 +32,7 @@ import { confirmationWhatsAppLink } from "@/lib/confirmation-message";
 import type { Manifest } from "@/lib/manifest";
 import { formatPrice, newId } from "@/lib/utils";
 import { generateInstallments } from "@/lib/installments";
+import { summarizePayments } from "@/lib/payments";
 import PhoneInput from "@/components/PhoneInput";
 import CurrencyInput from "@/components/CurrencyInput";
 import BusSeatMap from "@/components/checkout/BusSeatMap";
@@ -90,6 +92,11 @@ type FormState = {
   installments: Installment[];
   installmentCount: string;
   firstDueDate: string;
+  // Pagamento parcial (saldo devedor)
+  payments: Payment[];
+  newPaymentDate: string;
+  newPaymentAmount: string;
+  newPaymentNotes: string;
 };
 
 function emptyForm(): FormState {
@@ -111,6 +118,10 @@ function emptyForm(): FormState {
     installments: [],
     installmentCount: "5",
     firstDueDate: "",
+    payments: [],
+    newPaymentDate: "",
+    newPaymentAmount: "",
+    newPaymentNotes: "",
   };
 }
 
@@ -189,6 +200,10 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
       installments: booking.installments ?? [],
       installmentCount: String(booking.installments?.length || 5),
       firstDueDate: booking.installments?.[0]?.dueDate ?? "",
+      payments: booking.payments ?? [],
+      newPaymentDate: "",
+      newPaymentAmount: "",
+      newPaymentNotes: "",
     });
   }
 
@@ -265,6 +280,35 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
     });
   }
 
+  function addPayment() {
+    if (!form) return;
+    if (!form.newPaymentDate.trim() || !(Number(form.newPaymentAmount) > 0)) {
+      setModalError("Informe a data e o valor do pagamento.");
+      return;
+    }
+    setModalError("");
+    setForm({
+      ...form,
+      payments: [
+        ...form.payments,
+        {
+          id: newId(),
+          date: form.newPaymentDate,
+          amount: Number(form.newPaymentAmount),
+          notes: form.newPaymentNotes.trim() || undefined,
+        },
+      ],
+      newPaymentDate: "",
+      newPaymentAmount: "",
+      newPaymentNotes: "",
+    });
+  }
+
+  function removePayment(id: string) {
+    if (!form) return;
+    setForm({ ...form, payments: form.payments.filter((p) => p.id !== id) });
+  }
+
   async function save() {
     if (!form || !data) return;
     if (!form.buyerName.trim()) {
@@ -305,6 +349,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
       buyerAddress: form.buyerAddress.trim(),
       buyerCep: form.buyerCep.trim(),
       installments: form.paymentMethod === "parcelado" ? form.installments : undefined,
+      payments: form.paymentMethod === "parcial" ? form.payments : undefined,
     };
     const res = await fetch(
       form.id ? `/api/admin/manual-bookings/${form.id}` : "/api/admin/manual-bookings",
@@ -783,7 +828,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
                     ))}
                   </select>
                 </div>
-                {form.paymentMethod !== "parcelado" && (
+                {form.paymentMethod !== "parcelado" && form.paymentMethod !== "parcial" && (
                   <div>
                     <label className={labelClass}>Situação</label>
                     <select
@@ -932,6 +977,123 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
                     </Link>
                     .
                   </p>
+                </div>
+              )}
+
+              {form.paymentMethod === "parcial" && (
+                <div className="space-y-4 rounded-2xl border border-[#4285F4]/25 bg-[#4285F4]/8 p-5">
+                  <p className="flex items-center gap-2 text-sm font-bold text-[#2f5fbf]">
+                    <Wallet size={16} />
+                    Pagamento Parcial — Saldo Devedor
+                  </p>
+                  <p className="text-[11px] text-graphite/50">
+                    Sem parcelas fixas nem vencimento — vá lançando os valores
+                    conforme forem chegando (edite essa venda de novo quando
+                    quiser abater mais). A situação vira "Pago" sozinha
+                    quando o saldo devedor chegar a zero.
+                  </p>
+
+                  {(() => {
+                    const summary = summarizePayments(
+                      Number(form.amount) || 0,
+                      form.payments
+                    );
+                    return (
+                      <div className="grid grid-cols-3 gap-3 rounded-xl border border-graphite/10 bg-white p-3 text-center">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-graphite/45">
+                            Total
+                          </p>
+                          <p className="text-sm font-bold text-graphite">
+                            {formatPrice(summary.totalAmount)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-graphite/45">
+                            Pago
+                          </p>
+                          <p className="text-sm font-bold text-[#1a9b60]">
+                            {formatPrice(summary.paidAmount)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-graphite/45">
+                            Saldo devedor
+                          </p>
+                          <p className="text-sm font-bold text-rose">
+                            {formatPrice(summary.remainingAmount)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {form.payments.length > 0 && (
+                    <div className="space-y-2">
+                      <label className={labelClass}>Pagamentos recebidos</label>
+                      {form.payments.map((p) => (
+                        <div
+                          key={p.id}
+                          className="grid grid-cols-2 items-center gap-3 rounded-xl border border-graphite/10 bg-white p-3 sm:grid-cols-[auto_auto_1fr_auto]"
+                        >
+                          <span className="text-xs font-semibold text-graphite/60">
+                            {p.date}
+                          </span>
+                          <span className="text-sm font-semibold text-graphite">
+                            {formatPrice(p.amount)}
+                          </span>
+                          <span className="truncate text-xs text-graphite/45">
+                            {p.notes}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removePayment(p.id)}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-graphite/40 hover:bg-rose/10 hover:text-rose"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="grid gap-3 sm:grid-cols-[auto_auto_1fr_auto]">
+                    <div>
+                      <label className={labelClass}>Data</label>
+                      <DateField
+                        className={`${inputClass} sm:w-32`}
+                        value={form.newPaymentDate}
+                        onChange={(v) => setForm({ ...form, newPaymentDate: v })}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Valor</label>
+                      <CurrencyInput
+                        className={`${inputClass} sm:w-32`}
+                        value={Number(form.newPaymentAmount) || 0}
+                        onChange={(v) => setForm({ ...form, newPaymentAmount: String(v) })}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Observação (opcional)</label>
+                      <input
+                        className={inputClass}
+                        placeholder="Ex.: Pix recebido"
+                        value={form.newPaymentNotes}
+                        onChange={(e) => setForm({ ...form, newPaymentNotes: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={addPayment}
+                        className="btn-outline w-full !py-2.5"
+                      >
+                        <Plus size={14} />
+                        Adicionar
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 

@@ -63,7 +63,8 @@ export type PaymentMethod =
   | "cartao"
   | "transferencia"
   | "cortesia"
-  | "parcelado";
+  | "parcelado"
+  | "parcial";
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   dinheiro: "Dinheiro",
@@ -72,6 +73,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   transferencia: "Transferência",
   cortesia: "Cortesia",
   parcelado: "Pix Parcelado (Carnê)",
+  parcial: "Pagamento Parcial (saldo devedor)",
 };
 
 // Uma parcela do carnê de pagamento (Pix parcelado)
@@ -83,6 +85,17 @@ export type Installment = {
   status: "pendente" | "pago";
   paidAt?: string; // dd/mm/aaaa
   paidAmount?: number;
+  notes?: string;
+};
+
+// Um lançamento avulso de pagamento (forma "Pagamento Parcial") — sem
+// parcelas fixas nem vencimento: só um valor recebido numa data, abatido
+// do saldo devedor. Pensado pra casos ocasionais, ao contrário do carnê
+// (que exige gerar as parcelas com antecedência).
+export type Payment = {
+  id: string;
+  date: string; // dd/mm/aaaa
+  amount: number;
   notes?: string;
 };
 
@@ -107,6 +120,8 @@ export type ManualBooking = {
   buyerAddress?: string;
   buyerCep?: string;
   installments?: Installment[];
+  // Lançamentos avulsos de pagamento (forma "Pagamento Parcial")
+  payments?: Payment[];
 };
 
 export type Banner = {
