@@ -8,6 +8,10 @@ next-env.d.ts
 public/uploads/*
 !public/uploads/.gitkeep
 
+# Imagens enviadas pelo admin (ver lib/uploads.ts + app/uploads/[...path]/route.ts)
+/uploads-data/*
+!/uploads-data/.gitkeep
+
 # Banco de dados (SQLite) — contém dados reais de cliente, nunca versionar.
 # O schema/migrations em prisma/ continuam versionados normalmente.
 prisma/situr.db

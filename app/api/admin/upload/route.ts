@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import sharp from "sharp";
 import { newId } from "@/lib/utils";
+import { UPLOADS_DIR } from "@/lib/uploads";
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
 const MAX_SIZE = 15 * 1024 * 1024;
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  const uploadDir = UPLOADS_DIR;
   await fs.mkdir(uploadDir, { recursive: true });
 
   const buffer = Buffer.from(await file.arrayBuffer());

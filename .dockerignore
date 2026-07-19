@@ -12,3 +12,5 @@ data
 .idea
 public/uploads/*
 !public/uploads/.gitkeep
+uploads-data/*
+!uploads-data/.gitkeep
