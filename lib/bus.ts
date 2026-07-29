@@ -96,8 +96,12 @@ export function tripCapacity(trip: Trip): number {
 }
 
 /**
- * Monta a planta completa da viagem. Com 1 ônibus os ids são "15";
- * com 2+ ônibus viram "1-15" (ônibus 1, poltrona 15).
+ * Monta a planta completa da viagem. O ônibus 1 SEMPRE usa ids "15" (nunca
+ * muda, não importa quantos ônibus a viagem tenha) — só o ônibus 2 em diante
+ * usa "2-15", "3-15" etc. Isso é proposital: adicionar mais ônibus só ADICIONA
+ * poltronas novas, nunca renumera as que já existem e podem estar vendidas
+ * (ver incidente de 24/07/2026 — trocar a quantidade renumerava tudo e
+ * "perdia" reservas/vendas já feitas no ônibus 1).
  */
 export function generateBusLayout(model: BusModelId, count: number): BusLayout {
   const def = BUS_MODELS[model];
@@ -105,7 +109,7 @@ export function generateBusLayout(model: BusModelId, count: number): BusLayout {
   const decks: BusDeck[] = [];
 
   for (let b = 1; b <= buses; b++) {
-    const seatId = (n: number) => (buses > 1 ? `${b}-${n}` : String(n));
+    const seatId = (n: number) => (b > 1 ? `${b}-${n}` : String(n));
     for (const deck of def.build(seatId)) {
       const busName = buses > 1 ? `Ônibus ${b}` : "";
       decks.push({
@@ -193,4 +197,26 @@ export function validSeatNumbers(trip: Trip): Set<string> {
     }
   }
   return set;
+}
+
+/**
+ * Poltronas hoje ocupadas (bloqueadas + reservas online + vendas no balcão)
+ * que ficariam sem correspondência se a viagem trocasse pro novo
+ * modelo/quantidade de ônibus — usado pra bloquear no servidor uma troca que
+ * "perderia" reservas já feitas (ver incidente de 24/07/2026).
+ */
+export function findOrphanedOccupiedSeats(
+  trip: Trip,
+  newBusModel: BusModelId,
+  newBusCount: number,
+  reservations: Reservation[],
+  manualBookings: ManualBooking[]
+): string[] {
+  const occupied = occupiedSeatsForTrip(trip, reservations, manualBookings);
+  const newValid = validSeatNumbers({
+    ...trip,
+    busModel: newBusModel,
+    busCount: newBusCount,
+  });
+  return [...occupied].filter((s) => !newValid.has(s)).sort(compareSeatIds);
 }
