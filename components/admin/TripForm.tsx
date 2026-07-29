@@ -111,13 +111,15 @@ export default function TripForm({ trip }: { trip?: Trip }) {
   );
   const computedSpotsLeft = Math.max(0, capacity - occupiedCount);
 
-  // Trocar o tipo/quantidade de ônibus muda a capacidade (derivada) e limpa bloqueios
+  // Trocar o tipo de ônibus muda o mapa inteiro (limpa bloqueios). Já mudar só
+  // a quantidade não invalida os bloqueios existentes — o ônibus 1 nunca
+  // renumera, e ônibus adicionais entram com poltronas novas (ver lib/bus.ts).
   function setBusConfig(model: BusModelId, count: number) {
     setForm((f) => ({
       ...f,
       busModel: model,
       busCount: count,
-      blockedSeats: [],
+      blockedSeats: model !== f.busModel ? [] : (f.blockedSeats ?? []),
     }));
   }
 
@@ -377,21 +379,47 @@ export default function TripForm({ trip }: { trip?: Trip }) {
                 </p>
               </Field>
               <Field label="Quantidade de ônibus">
-                <select
-                  className={inputClass}
-                  value={busCount}
-                  onChange={(e) => setBusConfig(busModel, Number(e.target.value))}
-                >
-                  {[1, 2, 3, 4].map((n) => (
-                    <option key={n} value={n}>
-                      {n} {n === 1 ? "ônibus" : "ônibus"} —{" "}
-                      {BUS_MODELS[busModel].seats * n} lugares
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1.5 text-[11px] text-graphite/45">
-                  Trocar tipo/quantidade recalcula as vagas e limpa os bloqueios.
-                </p>
+                {trip ? (
+                  <div>
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-graphite/15 bg-white px-4 py-2.5 text-sm">
+                      <span className="font-semibold text-graphite">
+                        {busCount} {busCount === 1 ? "ônibus" : "ônibus"} —{" "}
+                        {BUS_MODELS[busModel].seats * busCount} lugares
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busCount >= 4}
+                        onClick={() => setBusConfig(busModel, busCount + 1)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-rose px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <Plus size={13} /> Adicionar ônibus
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-graphite/45">
+                      {busCount >= 4
+                        ? "Limite de 4 ônibus por viagem."
+                        : "As poltronas dos ônibus já existentes não mudam — só adiciona lugares novos. Não é possível remover um ônibus com poltronas vendidas por aqui."}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      className={inputClass}
+                      value={busCount}
+                      onChange={(e) => setBusConfig(busModel, Number(e.target.value))}
+                    >
+                      {[1, 2, 3, 4].map((n) => (
+                        <option key={n} value={n}>
+                          {n} {n === 1 ? "ônibus" : "ônibus"} —{" "}
+                          {BUS_MODELS[busModel].seats * n} lugares
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1.5 text-[11px] text-graphite/45">
+                      Depois de criada, dá pra adicionar mais ônibus, mas não reduzir.
+                    </p>
+                  </>
+                )}
               </Field>
             </div>
 
