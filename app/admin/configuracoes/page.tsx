@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Eye, EyeOff, KeyRound, Loader2, Check } from "lucide-react";
+import { adminErrorMessage } from "@/lib/admin-fetch";
 
 const inputClass =
   "w-full rounded-xl border border-graphite/15 bg-white px-4 py-2.5 pr-11 text-sm outline-none transition-colors focus:border-rose";
@@ -76,8 +77,7 @@ export default function AdminConfiguracoesPage() {
       setNewPassword("");
       setConfirmPassword("");
     } else {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Erro ao trocar a senha.");
+      setError(await adminErrorMessage(res, "Erro ao trocar a senha."));
     }
   }
 

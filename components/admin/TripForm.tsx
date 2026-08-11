@@ -15,6 +15,7 @@ import {
 import type { Trip, ItineraryDay } from "@/lib/types";
 import { parseActivityTime, sortActivitiesByTime } from "@/lib/utils";
 import { generateBusLayout, BUS_MODELS, type BusModelId } from "@/lib/bus";
+import { adminErrorMessage } from "@/lib/admin-fetch";
 import BusSeatMap from "@/components/checkout/BusSeatMap";
 import CurrencyInput from "@/components/CurrencyInput";
 import DateField from "./DateField";
@@ -168,8 +169,7 @@ export default function TripForm({ trip }: { trip?: Trip }) {
       router.push("/admin/viagens");
       router.refresh();
     } else {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Erro ao salvar. Tente novamente.");
+      setError(await adminErrorMessage(res, "Erro ao salvar. Tente novamente."));
     }
   }
 

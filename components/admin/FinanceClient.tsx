@@ -19,6 +19,7 @@ import type { Expense, ExpenseCategory } from "@/lib/types";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/types";
 import type { ManifestSummary } from "@/lib/manifest";
 import { formatPrice } from "@/lib/utils";
+import { adminErrorMessage } from "@/lib/admin-fetch";
 import CurrencyInput from "@/components/CurrencyInput";
 import DateField from "./DateField";
 
@@ -161,8 +162,7 @@ export default function FinanceClient({ tripId }: { tripId: string }) {
       setForm(null);
       load();
     } else {
-      const d = await res.json().catch(() => ({}));
-      setModalError(d.error ?? "Erro ao salvar.");
+      setModalError(await adminErrorMessage(res, "Erro ao salvar."));
     }
   }
 

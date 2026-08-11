@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Upload, Link2, Loader2 } from "lucide-react";
+import { adminErrorMessage } from "@/lib/admin-fetch";
 
 export default function ImageUploader({
   onUploaded,
@@ -25,8 +26,8 @@ export default function ImageUploader({
         method: "POST",
         body: formData,
       });
+      if (!res.ok) throw new Error(await adminErrorMessage(res, "Erro no upload"));
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro no upload");
       onUploaded(data.url);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro no upload");

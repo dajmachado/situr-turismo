@@ -33,6 +33,7 @@ import type { Manifest } from "@/lib/manifest";
 import { formatPrice, newId } from "@/lib/utils";
 import { generateInstallments } from "@/lib/installments";
 import { summarizePayments } from "@/lib/payments";
+import { adminErrorMessage } from "@/lib/admin-fetch";
 import PhoneInput from "@/components/PhoneInput";
 import CurrencyInput from "@/components/CurrencyInput";
 import BusSeatMap from "@/components/checkout/BusSeatMap";
@@ -364,8 +365,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
       setForm(null);
       load();
     } else {
-      const d = await res.json().catch(() => ({}));
-      setModalError(d.error ?? "Erro ao salvar.");
+      setModalError(await adminErrorMessage(res, "Erro ao salvar."));
     }
   }
 

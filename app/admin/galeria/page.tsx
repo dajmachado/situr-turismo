@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Trash2, Camera, ExternalLink, Star } from "lucide-react";
 import type { GalleryItem, Trip } from "@/lib/types";
+import { adminErrorMessage } from "@/lib/admin-fetch";
 import ImageUploader from "@/components/admin/ImageUploader";
 
 const inputClass =
@@ -54,8 +55,7 @@ export default function AdminGalleryPage() {
       body: JSON.stringify({ image: url, caption, tripSlug }),
     });
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Erro ao salvar a foto.");
+      setError(await adminErrorMessage(res, "Erro ao salvar a foto."));
       return;
     }
     setCaption("");
