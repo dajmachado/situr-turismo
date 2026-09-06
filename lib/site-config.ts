@@ -11,10 +11,10 @@ export const siteConfig = {
   // Cadastur usa o mesmo número do CNPJ
   cnpjNumber: "67.500.979/0001-38",
   registrationLabel: "Registro Cadastur/CNPJ",
-  address: "Rua das Palmeiras, 123 — Centro, Blumenau/SC",
+  address: "Rua Francisco Luiz de Almeida, 27, Roçado, São José, Santa Catarina",
   mapEmbedUrl:
-    "https://www.google.com/maps?q=Blumenau,+SC,+Brasil&output=embed",
-  email: "contato@siturturismo.com.br",
+    "https://www.google.com/maps?q=Rua+Francisco+Luiz+de+Almeida,+27,+Roçado,+São+José,+SC&output=embed",
+  email: "situr.sc@gmail.com",
   stats: [
     { value: 4000, suffix: "+", label: "Pessoas transportadas" },
     { value: 60, suffix: "+", label: "Viagens realizadas" },
