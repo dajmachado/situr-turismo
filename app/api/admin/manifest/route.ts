@@ -29,6 +29,7 @@ export async function GET(request: Request) {
       destination: trip.destination,
       slug: trip.slug,
       price: trip.price,
+      busCount: trip.busCount ?? 1,
     },
     manifest: buildManifest(trip, reservations, manual),
     layout: busLayoutForTrip(trip),

@@ -46,6 +46,7 @@ type TripInfo = {
   destination: string;
   slug: string;
   price: number;
+  busCount: number;
 };
 
 type ApiData = {
@@ -476,6 +477,97 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
     setTimeout(() => w.print(), 400);
   }
 
+  // "1-15" -> ônibus 1; "15" (sem hífen) também é ônibus 1 (ver lib/bus.ts —
+  // o ônibus 1 nunca renumera, só o 2º em diante ganha o prefixo).
+  function busNumberOfSeat(seat: string): number {
+    const dash = seat.indexOf("-");
+    return dash === -1 ? 1 : Number(seat.slice(0, dash)) || 1;
+  }
+
+  // Só o número da poltrona, sem repetir "Ônibus N" (a página inteira já
+  // tem esse ônibus no cabeçalho — repetir em toda linha só polui a coluna).
+  function bareSeatNumber(seat: string): string {
+    const dash = seat.indexOf("-");
+    return dash === -1 ? seat : seat.slice(dash + 1);
+  }
+
+  // Mesma lista de embarque, mas quebrada em uma página por ônibus — útil
+  // pra entregar uma folha pra cada motorista/guia numa viagem com frota.
+  function printListByBus() {
+    if (!data) return;
+    const { trip, manifest } = data;
+    const byBus = new Map<number, typeof manifest.rows>();
+    for (const r of manifest.rows) {
+      const bus = busNumberOfSeat(r.seat);
+      if (!byBus.has(bus)) byBus.set(bus, []);
+      byBus.get(bus)!.push(r);
+    }
+    const busNumbers = [...byBus.keys()].sort((a, b) => a - b);
+
+    const sectionsHtml = busNumbers
+      .map((bus, idx) => {
+        const rows = byBus.get(bus)!;
+        const confirmed = rows.filter((r) => r.status === "confirmado").length;
+        const pending = rows.filter((r) => r.status === "pendente").length;
+        const reserved = rows.filter((r) => r.status === "reservado").length;
+        const rowsHtml = rows
+          .map(
+            (r, i) => `<tr>
+              <td class="c">${i + 1}</td>
+              <td class="c b">${bareSeatNumber(r.seat)}</td>
+              <td>${escapeHtml(r.passengerName)}</td>
+              <td>${escapeHtml(r.document ?? "")}</td>
+              <td>${escapeHtml(r.phone ?? "")}</td>
+              <td>${escapeHtml(r.boardingPoint ?? "")}</td>
+              <td class="c">${r.origin === "online" ? "Online" : "Balcão"}</td>
+              <td class="c">${statusLabel[r.status]}</td>
+              <td class="sig"></td>
+            </tr>`
+          )
+          .join("");
+        return `<section class="${idx > 0 ? "pagebreak" : ""}">
+          <h1>Lista de Embarque — ${escapeHtml(trip.title)}</h1>
+          <h2>Ônibus ${bus}</h2>
+          <div class="meta">${escapeHtml(trip.destination)} · Saída: ${escapeHtml(
+          trip.date
+        )}</div>
+          <div class="sum">Confirmados: <b>${confirmed}</b> ·
+            Aguardando: ${pending} · Reservados: ${reserved} ·
+            Total nesse ônibus: <b>${rows.length}</b></div>
+          <table><thead><tr>
+            <th class="c">#</th><th class="c">Polt.</th><th>Passageiro</th>
+            <th>Documento</th><th>Telefone</th><th>Embarque</th>
+            <th class="c">Origem</th><th class="c">Status</th><th>Assinatura</th>
+          </tr></thead><tbody>${rowsHtml}</tbody></table>
+        </section>`;
+      })
+      .join("");
+
+    const w = window.open("", "_blank", "width=900,height=1000");
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+      <title>Lista de embarque por ônibus — ${escapeHtml(trip.title)}</title>
+      <style>
+        * { font-family: Arial, sans-serif; }
+        body { margin: 24px; color: #211d1d; }
+        h1 { font-size: 18px; margin: 0 0 2px; }
+        h2 { font-size: 14px; margin: 0 0 6px; color: #a8524a; }
+        .meta { font-size: 12px; color: #555; margin-bottom: 4px; }
+        .sum { font-size: 12px; margin: 8px 0 16px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #bbb; padding: 5px 7px; font-size: 11px; text-align: left; }
+        th { background: #f2e9e6; }
+        .c { text-align: center; }
+        .b { font-weight: bold; }
+        .sig { width: 130px; }
+        .pagebreak { page-break-before: always; }
+        @media print { body { margin: 10mm; } }
+      </style></head><body>${sectionsHtml}</body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 400);
+  }
+
   if (loading) {
     return (
       <p className="flex items-center gap-2 text-sm text-graphite/55">
@@ -520,6 +612,16 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
             <Printer size={15} />
             Imprimir
           </button>
+          {trip.busCount > 1 && (
+            <button
+              onClick={printListByBus}
+              className="btn-outline !px-5 !py-2.5"
+              title="Uma página separada pra cada ônibus da frota"
+            >
+              <Printer size={15} />
+              Imprimir por ônibus
+            </button>
+          )}
           <button onClick={exportCsv} className="btn-outline !px-5 !py-2.5">
             <Download size={15} />
             CSV
