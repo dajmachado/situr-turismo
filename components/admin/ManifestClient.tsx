@@ -8,6 +8,7 @@ import {
   Plus,
   Printer,
   Download,
+  FileDown,
   Pencil,
   Trash2,
   X,
@@ -19,6 +20,8 @@ import {
   CreditCard,
   Wand2,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import type {
   ManualBooking,
   PaymentMethod,
@@ -568,6 +571,87 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
     setTimeout(() => w.print(), 400);
   }
 
+  // Mesmo agrupamento do "Imprimir por ônibus", mas baixa um .pdf de verdade
+  // (jsPDF + autoTable) em vez de depender do usuário escolher "Salvar como
+  // PDF" na caixa de impressão do navegador.
+  function exportPdfByBus() {
+    if (!data) return;
+    const { trip, manifest } = data;
+    const byBus = new Map<number, typeof manifest.rows>();
+    for (const r of manifest.rows) {
+      const bus = busNumberOfSeat(r.seat);
+      if (!byBus.has(bus)) byBus.set(bus, []);
+      byBus.get(bus)!.push(r);
+    }
+    const busNumbers = [...byBus.keys()].sort((a, b) => a - b);
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+    busNumbers.forEach((bus, idx) => {
+      if (idx > 0) doc.addPage();
+      const rows = byBus.get(bus)!;
+      const confirmed = rows.filter((r) => r.status === "confirmado").length;
+      const pending = rows.filter((r) => r.status === "pendente").length;
+      const reserved = rows.filter((r) => r.status === "reservado").length;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(33, 29, 29);
+      doc.text(`Lista de Embarque — ${trip.title}`, 14, 15);
+
+      doc.setFontSize(11);
+      doc.setTextColor(168, 82, 74);
+      doc.text(`Ônibus ${bus}`, 14, 22);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(85, 85, 85);
+      doc.text(`${trip.destination} · Saída: ${trip.date}`, 14, 28);
+      doc.text(
+        `Confirmados: ${confirmed}   Aguardando: ${pending}   Reservados: ${reserved}   Total nesse ônibus: ${rows.length}`,
+        14,
+        33
+      );
+
+      autoTable(doc, {
+        startY: 37,
+        head: [
+          [
+            "#",
+            "Polt.",
+            "Passageiro",
+            "Documento",
+            "Telefone",
+            "Embarque",
+            "Origem",
+            "Status",
+            "Assinatura",
+          ],
+        ],
+        body: rows.map((r, i) => [
+          String(i + 1),
+          bareSeatNumber(r.seat),
+          r.passengerName,
+          r.document ?? "",
+          r.phone ?? "",
+          r.boardingPoint ?? "",
+          r.origin === "online" ? "Online" : "Balcão",
+          statusLabel[r.status],
+          "",
+        ]),
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [242, 233, 230], textColor: [33, 29, 29] },
+        columnStyles: {
+          0: { cellWidth: 8 },
+          1: { cellWidth: 14 },
+          8: { cellWidth: 32 },
+        },
+      });
+    });
+
+    doc.save(`lista-embarque-${trip.slug}-por-onibus.pdf`);
+  }
+
   if (loading) {
     return (
       <p className="flex items-center gap-2 text-sm text-graphite/55">
@@ -620,6 +704,16 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
             >
               <Printer size={15} />
               Imprimir por ônibus
+            </button>
+          )}
+          {trip.busCount > 1 && (
+            <button
+              onClick={exportPdfByBus}
+              className="btn-outline !px-5 !py-2.5"
+              title="Baixa um PDF com uma página separada pra cada ônibus"
+            >
+              <FileDown size={15} />
+              Exportar PDF por ônibus
             </button>
           )}
           <button onClick={exportCsv} className="btn-outline !px-5 !py-2.5">
