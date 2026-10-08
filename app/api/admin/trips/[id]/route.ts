@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { getTrips, saveTrips, getReservations, getManualBookings } from "@/lib/db";
-import { findOrphanedOccupiedSeats, normalizeBusModel, seatLabel } from "@/lib/bus";
+import {
+  findOrphanedSoldSeats,
+  fleetValidSeats,
+  normalizeBusModel,
+  normalizeFleet,
+  seatLabel,
+  tripFleet,
+  uniformFleet,
+  type FleetBus,
+} from "@/lib/bus";
+import { buildManifest } from "@/lib/manifest";
+import { withFileLock } from "@/lib/mutex";
 import type { Trip } from "@/lib/types";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -17,60 +28,102 @@ export async function GET(_request: Request, { params }: Ctx) {
 export async function PUT(request: Request, { params }: Ctx) {
   const { id } = await params;
   const body = (await request.json()) as Partial<Trip>;
-  const trips = await getTrips();
-  const index = trips.findIndex((t) => t.id === id);
-  if (index === -1) {
-    return NextResponse.json({ error: "Viagem não encontrada" }, { status: 404 });
-  }
 
-  const current = trips[index];
-  const currentBusModel = normalizeBusModel(current.busModel);
-  const newBusModel =
-    body.busModel !== undefined ? normalizeBusModel(body.busModel) : currentBusModel;
-  const newBusCount =
-    body.busCount !== undefined ? Number(body.busCount) || 1 : (current.busCount ?? 1);
-
-  // Trocar tipo/quantidade de ônibus pode renumerar poltronas — bloqueia se
-  // isso deixaria alguma venda/reserva já feita sem correspondência no novo
-  // mapa (ver incidente de 24/07/2026).
-  const busConfigChanged =
-    newBusModel !== currentBusModel ||
-    newBusCount !== (current.busCount ?? 1);
-
-  if (busConfigChanged) {
-    const [reservations, manual] = await Promise.all([
-      getReservations(),
-      getManualBookings(),
-    ]);
-    const orphaned = findOrphanedOccupiedSeats(
-      current,
-      newBusModel,
-      newBusCount,
-      reservations,
-      manual
-    );
-    if (orphaned.length) {
+  let requestedFleet: FleetBus[] | null = null;
+  if (body.buses !== undefined) {
+    requestedFleet = normalizeFleet(body.buses);
+    if (!requestedFleet) {
       return NextResponse.json(
-        {
-          error: `Essa troca de ônibus deixaria ${orphaned.length} poltrona(s) ocupada(s) sem correspondência no novo mapa: ${orphaned
-            .map(seatLabel)
-            .join(", ")}. Reatribua ou cancele essas vendas antes de trocar o ônibus.`,
-        },
-        { status: 409 }
+        { error: "Lista de ônibus inválida." },
+        { status: 400 }
       );
     }
   }
 
-  trips[index] = {
-    ...current,
-    ...body,
-    id,
-    price: Number(body.price ?? current.price) || 0,
-    spotsTotal: Number(body.spotsTotal ?? current.spotsTotal) || 0,
-    spotsLeft: Number(body.spotsLeft ?? current.spotsLeft) || 0,
-  };
-  await saveTrips(trips);
-  return NextResponse.json(trips[index]);
+  // Mesma trava das vendas no balcão: enquanto a frota é conferida e gravada,
+  // nenhuma venda nova entra numa poltrona que está deixando de existir.
+  const result = await withFileLock("manual-bookings", async () => {
+    const trips = await getTrips();
+    const index = trips.findIndex((t) => t.id === id);
+    if (index === -1) {
+      return { error: "Viagem não encontrada", status: 404 as const };
+    }
+
+    const current = trips[index];
+    const currentFleet = tripFleet(current);
+
+    let newFleet = currentFleet;
+    if (requestedFleet) {
+      newFleet = requestedFleet;
+    } else if (
+      !current.buses &&
+      (body.busModel !== undefined || body.busCount !== undefined)
+    ) {
+      // Tela antiga (aba aberta desde antes da frota mista) numa viagem que
+      // ainda vale por tipo + quantidade. Se a viagem já tem frota gravada,
+      // esses dois campos são ignorados — senão uma aba velha desfaria uma
+      // frota mista só por salvar outra coisa.
+      newFleet = uniformFleet(
+        normalizeBusModel(body.busModel ?? current.busModel),
+        Number(body.busCount ?? current.busCount) || 1
+      );
+    }
+
+    // Qualquer mudança na frota só passa se toda poltrona vendida continuar
+    // existindo (ver incidente de 24/07/2026).
+    if (JSON.stringify(newFleet) !== JSON.stringify(currentFleet)) {
+      const [reservations, manual] = await Promise.all([
+        getReservations(),
+        getManualBookings(),
+      ]);
+      const orphaned = findOrphanedSoldSeats(id, newFleet, reservations, manual);
+      if (orphaned.length) {
+        const busIds = currentFleet.map((b) => b.id);
+        const names = new Map(
+          buildManifest(current, reservations, manual).rows.map((r) => [
+            r.seat,
+            r.passengerName,
+          ])
+        );
+        const list = orphaned
+          .map((s) => {
+            const name = names.get(s);
+            return name ? `${seatLabel(s, busIds)} (${name})` : seatLabel(s, busIds);
+          })
+          .join(", ");
+        return {
+          error: `Não dá para salvar essa mudança nos ônibus: ${orphaned.length} poltrona(s) vendida(s) ficariam sem lugar — ${list}. Passe esses passageiros para outras poltronas e tente de novo.`,
+          status: 409 as const,
+        };
+      }
+    }
+
+    const valid = fleetValidSeats(newFleet);
+    const blocked = Array.isArray(body.blockedSeats)
+      ? body.blockedSeats
+      : (current.blockedSeats ?? []);
+
+    trips[index] = {
+      ...current,
+      ...body,
+      id,
+      price: Number(body.price ?? current.price) || 0,
+      spotsTotal: Number(body.spotsTotal ?? current.spotsTotal) || 0,
+      spotsLeft: Number(body.spotsLeft ?? current.spotsLeft) || 0,
+      buses: newFleet,
+      busModel: newFleet[0].model,
+      busCount: newFleet.length,
+      // Bloqueio é só marcação do admin: se a poltrona deixou de existir, cai.
+      blockedSeats: blocked.map(String).filter((s) => valid.has(s)),
+    };
+    await saveTrips(trips);
+    return { trip: trips[index] };
+  });
+
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+  return NextResponse.json(result.trip);
 }
 
 export async function DELETE(_request: Request, { params }: Ctx) {

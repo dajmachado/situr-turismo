@@ -16,7 +16,7 @@ import {
   QrCode,
 } from "lucide-react";
 import type { Trip } from "@/lib/types";
-import { compareSeatIds, seatLabel, type BusLayout } from "@/lib/bus";
+import { compareSeatIds, seatLabel, seatNumber, type BusLayout } from "@/lib/bus";
 import { formatPrice } from "@/lib/utils";
 import { whatsappLink } from "@/lib/site-config";
 import GoogleLoginButton from "@/components/GoogleLoginButton";
@@ -430,7 +430,9 @@ export default function CheckoutClient({
                             {seat.split("-").pop()}
                           </span>
                           <span className="text-xs font-semibold uppercase tracking-wider text-graphite/55">
-                            {seat.includes("-") ? seatLabel(seat) : `Poltrona ${seat}`}
+                            {layout && layout.busIds.length > 1
+                              ? seatLabel(seat, layout.busIds)
+                              : `Poltrona ${seatNumber(seat)}`}
                             {i === 0 && " · responsável"}
                           </span>
                         </div>
@@ -556,7 +558,7 @@ export default function CheckoutClient({
                   <a
                     href={whatsappLink(
                       `Olá! Quero reservar as poltronas ${sortedSeats
-                        .map(seatLabel)
+                        .map((s) => seatLabel(s, layout?.busIds ?? null))
                         .join(", ")} na ${trip.title} (${trip.date}) em nome de ${name}.`
                     )}
                     target="_blank"

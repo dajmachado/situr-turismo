@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { getTrips, getTripsWithLiveSpots, saveTrips } from "@/lib/db";
 import { newId, slugify } from "@/lib/utils";
-import { normalizeBusModel } from "@/lib/bus";
+import {
+  fleetValidSeats,
+  normalizeBusModel,
+  normalizeFleet,
+  uniformFleet,
+} from "@/lib/bus";
 import type { Trip } from "@/lib/types";
 
 export async function GET() {
@@ -13,6 +18,12 @@ export async function POST(request: Request) {
   if (!body.title) {
     return NextResponse.json({ error: "Título é obrigatório" }, { status: 400 });
   }
+
+  // Frota: lista explícita se vier, senão N ônibus iguais (tipo + quantidade).
+  const fleet =
+    normalizeFleet(body.buses) ??
+    uniformFleet(normalizeBusModel(body.busModel), Number(body.busCount) || 1);
+  const validSeats = fleetValidSeats(fleet);
 
   const trips = await getTrips();
   const trip: Trip = {
@@ -37,9 +48,12 @@ export async function POST(request: Request) {
     itinerary: body.itinerary ?? [],
     faq: body.faq ?? [],
     featured: body.featured ?? true,
-    busModel: normalizeBusModel(body.busModel),
-    busCount: Math.min(6, Math.max(1, Number(body.busCount) || 1)),
-    blockedSeats: body.blockedSeats ?? [],
+    buses: fleet,
+    busModel: fleet[0].model,
+    busCount: fleet.length,
+    blockedSeats: (Array.isArray(body.blockedSeats) ? body.blockedSeats : [])
+      .map(String)
+      .filter((s) => validSeats.has(s)),
   };
 
   if (trips.some((t) => t.slug === trip.slug)) {

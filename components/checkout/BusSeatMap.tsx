@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { BusLayout } from "@/lib/bus";
+import { seatLabel, type BusLayout } from "@/lib/bus";
 
 type Props = {
   layout: BusLayout;
@@ -97,7 +97,11 @@ export default function BusSeatMap({
                           disabled={disabled || occupiedSet.has(cell.id)}
                           onClick={() => onToggle(cell.id)}
                           className={seatClasses(cell.id)}
-                          aria-label={`Poltrona ${cell.id}`}
+                          aria-label={
+                            layout.busIds.length > 1
+                              ? seatLabel(cell.id, layout.busIds)
+                              : `Poltrona ${cell.number}`
+                          }
                           aria-pressed={activeSet.has(cell.id)}
                         >
                           {cell.number}

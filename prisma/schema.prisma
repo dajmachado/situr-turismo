@@ -36,6 +36,9 @@ model Trip {
   busModel         String?
   busCount         Int?
   blockedSeatsJson String?
+  // Frota com um item por ônibus ({id, model}) — permite misturar tipos.
+  // Nulo nas viagens antigas, que seguem valendo por busModel + busCount.
+  busesJson        String?
 }
 
 model Banner {

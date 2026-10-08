@@ -46,6 +46,12 @@ export type Trip = {
   itinerary: ItineraryDay[];
   faq: Faq[];
   featured: boolean;
+  /**
+   * Frota da viagem, um item por ônibus (ver FleetBus em lib/bus.ts). Quando
+   * existe, é a fonte da verdade; `busModel`/`busCount` abaixo ficam só como
+   * espelho (1º ônibus / quantidade) e valem sozinhos nas viagens antigas.
+   */
+  buses?: { id: number; model: "dd43" | "exec46" | "micro24" }[];
   busModel?: "dd43" | "exec46" | "micro24";
   busCount?: number;
   blockedSeats?: string[];

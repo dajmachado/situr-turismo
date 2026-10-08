@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { getTrips, getReservations, getManualBookings } from "@/lib/db";
-import { busLayoutForTrip, occupiedSeatsForTrip } from "@/lib/bus";
+import {
+  BUS_MODELS,
+  busLayoutForTrip,
+  occupiedSeatsForTrip,
+  tripFleet,
+  validSeatNumbers,
+} from "@/lib/bus";
 import { buildManifest } from "@/lib/manifest";
 
 // Lista de embarque unificada (online + balcão) de uma viagem.
@@ -21,6 +27,10 @@ export async function GET(request: Request) {
     getManualBookings(),
   ]);
 
+  const fleet = tripFleet(trip);
+  const manifest = buildManifest(trip, reservations, manual);
+  const valid = validSeatNumbers(trip);
+
   return NextResponse.json({
     trip: {
       id: trip.id,
@@ -29,9 +39,20 @@ export async function GET(request: Request) {
       destination: trip.destination,
       slug: trip.slug,
       price: trip.price,
-      busCount: trip.busCount ?? 1,
+      busCount: fleet.length,
+      // Um item por ônibus, na ordem da frota (posição = "Ônibus N" da tela).
+      buses: fleet.map((b) => ({
+        id: b.id,
+        model: b.model,
+        label: BUS_MODELS[b.model].label,
+        seats: BUS_MODELS[b.model].seats,
+      })),
     },
-    manifest: buildManifest(trip, reservations, manual),
+    manifest,
+    // Poltronas com passageiro que não existem na frota atual. Não deveria
+    // acontecer (o servidor recusa mudanças de frota que causariam isso), mas
+    // se acontecer a tela avisa em vez de esconder a pessoa.
+    orphanSeats: manifest.rows.map((r) => r.seat).filter((s) => !valid.has(s)),
     layout: busLayoutForTrip(trip),
     occupied: [...occupiedSeatsForTrip(trip, reservations, manual)],
     manualBookings: manual.filter((b) => b.tripId === trip.id),

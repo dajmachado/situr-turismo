@@ -30,7 +30,7 @@ import type {
 } from "@/lib/types";
 import { PAYMENT_METHOD_LABELS } from "@/lib/types";
 import type { BusLayout } from "@/lib/bus";
-import { compareSeatIds, seatLabel } from "@/lib/bus";
+import { compareSeatIds, seatBusId, seatLabel, seatNumber } from "@/lib/bus";
 import { confirmationWhatsAppLink } from "@/lib/confirmation-message";
 import type { Manifest } from "@/lib/manifest";
 import { formatPrice, newId } from "@/lib/utils";
@@ -49,12 +49,14 @@ type TripInfo = {
   destination: string;
   slug: string;
   price: number;
-  busCount: number;
+  /** Frota na ordem: o índice + 1 é o "Ônibus N" mostrado na tela. */
+  buses: { id: number; model: string; label: string; seats: number }[];
 };
 
 type ApiData = {
   trip: TripInfo;
   manifest: Manifest;
+  orphanSeats: string[];
   layout: BusLayout;
   occupied: string[];
   manualBookings: ManualBooking[];
@@ -83,6 +85,12 @@ type FormState = {
   phone: string;
   seats: string[];
   passengers: Record<string, { name: string; document: string }>;
+  /**
+   * Passageiros de poltronas que acabaram de ser desmarcadas, esperando a
+   * próxima poltrona marcada — é o que faz "trocar de poltrona" levar nome e
+   * documento junto, sem redigitar.
+   */
+  detached: { name: string; document: string }[];
   amount: string;
   amountTouched: boolean;
   paymentMethod: PaymentMethod;
@@ -110,6 +118,7 @@ function emptyForm(): FormState {
     phone: "",
     seats: [],
     passengers: {},
+    detached: [],
     amount: "",
     amountTouched: false,
     paymentMethod: "dinheiro",
@@ -192,6 +201,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
           return [s, { name: pd?.name ?? "", document: pd?.document ?? "" }];
         })
       ),
+      detached: [],
       amount: String(booking.amount),
       amountTouched: true,
       paymentMethod: booking.paymentMethod,
@@ -213,22 +223,40 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
   }
 
   function toggleSeat(seat: string) {
+    setModalError("");
     setForm((f) => {
       if (!f) return f;
       let seats: string[];
       const passengers = { ...f.passengers };
+      let detached = f.detached;
+      const isBlank = (p?: { name: string; document: string }) =>
+        !p || (!p.name.trim() && !p.document.trim());
+
       if (f.seats.includes(seat)) {
+        // Desmarcou: o passageiro não é descartado — vai pra poltrona que já
+        // foi marcada e ainda está vazia, ou fica esperando a próxima.
         seats = f.seats.filter((s) => s !== seat);
+        const removed = passengers[seat];
         delete passengers[seat];
+        if (!isBlank(removed)) {
+          const waiting = seats.find((s) => isBlank(passengers[s]));
+          if (waiting) passengers[waiting] = removed;
+          else detached = [...detached, removed];
+        }
       } else {
         seats = [...f.seats, seat];
-        passengers[seat] = {
-          name: f.seats.length === 0 ? f.buyerName : "",
-          document: "",
-        };
+        if (detached.length) {
+          passengers[seat] = detached[0];
+          detached = detached.slice(1);
+        } else {
+          passengers[seat] = {
+            name: f.seats.length === 0 ? f.buyerName : "",
+            document: "",
+          };
+        }
       }
       const amount = f.amountTouched ? f.amount : String(price * seats.length);
-      return { ...f, seats, passengers, amount };
+      return { ...f, seats, passengers, detached, amount };
     });
   }
 
@@ -324,6 +352,13 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
       setModalError("Escolha ao menos uma poltrona.");
       return;
     }
+    // Poltrona desmarcada sem destino: não some com o passageiro em silêncio.
+    if (form.detached.length > 0) {
+      setModalError(
+        `${form.detached.map((p) => p.name || "Um passageiro").join(", ")} ficou sem poltrona. Clique na poltrona de destino no mapa ou em "remover da venda".`
+      );
+      return;
+    }
     if (sortedFormSeats.some((s) => !form.passengers[s]?.name.trim())) {
       setModalError("Informe o nome de cada passageiro.");
       return;
@@ -377,7 +412,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
     if (
       !confirm(
         `Excluir a venda de ${booking.buyerName} (poltronas ${booking.seats
-          .map((s) => s.split("-").pop())
+          .map((s) => seatLabel(s, data?.layout.busIds ?? null))
           .join(", ")})?`
       )
     )
@@ -401,7 +436,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
     ];
     const lines = data.manifest.rows.map((r) =>
       [
-        seatLabel(r.seat),
+        seatLabel(r.seat, data.layout.busIds),
         r.passengerName,
         r.document ?? "",
         r.phone ?? "",
@@ -429,11 +464,12 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
   function printList() {
     if (!data) return;
     const { trip, manifest } = data;
+    const busIds = data.layout.busIds;
     const rowsHtml = manifest.rows
       .map(
         (r, i) => `<tr>
           <td class="c">${i + 1}</td>
-          <td class="c b">${seatLabel(r.seat)}</td>
+          <td class="c b">${escapeHtml(seatLabel(r.seat, busIds))}</td>
           <td>${escapeHtml(r.passengerName)}</td>
           <td>${escapeHtml(r.document ?? "")}</td>
           <td>${escapeHtml(r.phone ?? "")}</td>
@@ -480,44 +516,48 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
     setTimeout(() => w.print(), 400);
   }
 
-  // "1-15" -> ônibus 1; "15" (sem hífen) também é ônibus 1 (ver lib/bus.ts —
-  // o ônibus 1 nunca renumera, só o 2º em diante ganha o prefixo).
-  function busNumberOfSeat(seat: string): number {
-    const dash = seat.indexOf("-");
-    return dash === -1 ? 1 : Number(seat.slice(0, dash)) || 1;
-  }
-
-  // Só o número da poltrona, sem repetir "Ônibus N" (a página inteira já
-  // tem esse ônibus no cabeçalho — repetir em toda linha só polui a coluna).
-  function bareSeatNumber(seat: string): string {
-    const dash = seat.indexOf("-");
-    return dash === -1 ? seat : seat.slice(dash + 1);
+  // Passageiros agrupados por ônibus, na ordem da frota (o título usa a
+  // POSIÇÃO do ônibus, não o id que vai dentro da poltrona — ver FleetBus em
+  // lib/bus.ts). Ônibus sem ninguém não gera página. Passageiro cuja poltrona
+  // é de um ônibus que não está mais na frota nunca é escondido: vai para um
+  // grupo próprio no fim.
+  function groupRowsByBus() {
+    if (!data) return [];
+    const { trip, manifest } = data;
+    const groups = trip.buses.map((bus, i) => ({
+      title: `Ônibus ${i + 1}`,
+      subtitle: bus.label,
+      rows: manifest.rows.filter((r) => seatBusId(r.seat) === bus.id),
+    }));
+    const known = new Set(trip.buses.map((b) => b.id));
+    const lost = manifest.rows.filter((r) => !known.has(seatBusId(r.seat)));
+    if (lost.length) {
+      groups.push({
+        title: "Sem ônibus definido",
+        subtitle: "poltronas de um ônibus que não está mais na frota",
+        rows: lost,
+      });
+    }
+    return groups.filter((g) => g.rows.length > 0);
   }
 
   // Mesma lista de embarque, mas quebrada em uma página por ônibus — útil
   // pra entregar uma folha pra cada motorista/guia numa viagem com frota.
   function printListByBus() {
     if (!data) return;
-    const { trip, manifest } = data;
-    const byBus = new Map<number, typeof manifest.rows>();
-    for (const r of manifest.rows) {
-      const bus = busNumberOfSeat(r.seat);
-      if (!byBus.has(bus)) byBus.set(bus, []);
-      byBus.get(bus)!.push(r);
-    }
-    const busNumbers = [...byBus.keys()].sort((a, b) => a - b);
+    const { trip } = data;
 
-    const sectionsHtml = busNumbers
-      .map((bus, idx) => {
-        const rows = byBus.get(bus)!;
+    const sectionsHtml = groupRowsByBus()
+      .map(({ title, subtitle, rows }, idx) => {
         const confirmed = rows.filter((r) => r.status === "confirmado").length;
         const pending = rows.filter((r) => r.status === "pendente").length;
         const reserved = rows.filter((r) => r.status === "reservado").length;
+        // Só o número da poltrona: a página inteira já é desse ônibus.
         const rowsHtml = rows
           .map(
             (r, i) => `<tr>
               <td class="c">${i + 1}</td>
-              <td class="c b">${bareSeatNumber(r.seat)}</td>
+              <td class="c b">${escapeHtml(seatNumber(r.seat))}</td>
               <td>${escapeHtml(r.passengerName)}</td>
               <td>${escapeHtml(r.document ?? "")}</td>
               <td>${escapeHtml(r.phone ?? "")}</td>
@@ -530,7 +570,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
           .join("");
         return `<section class="${idx > 0 ? "pagebreak" : ""}">
           <h1>Lista de Embarque — ${escapeHtml(trip.title)}</h1>
-          <h2>Ônibus ${bus}</h2>
+          <h2>${escapeHtml(title)} <span class="model">· ${escapeHtml(subtitle)}</span></h2>
           <div class="meta">${escapeHtml(trip.destination)} · Saída: ${escapeHtml(
           trip.date
         )}</div>
@@ -555,6 +595,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
         body { margin: 24px; color: #211d1d; }
         h1 { font-size: 18px; margin: 0 0 2px; }
         h2 { font-size: 14px; margin: 0 0 6px; color: #a8524a; }
+        h2 .model { font-weight: normal; color: #555; }
         .meta { font-size: 12px; color: #555; margin-bottom: 4px; }
         .sum { font-size: 12px; margin: 8px 0 16px; }
         table { width: 100%; border-collapse: collapse; }
@@ -576,20 +617,12 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
   // PDF" na caixa de impressão do navegador.
   function exportPdfByBus() {
     if (!data) return;
-    const { trip, manifest } = data;
-    const byBus = new Map<number, typeof manifest.rows>();
-    for (const r of manifest.rows) {
-      const bus = busNumberOfSeat(r.seat);
-      if (!byBus.has(bus)) byBus.set(bus, []);
-      byBus.get(bus)!.push(r);
-    }
-    const busNumbers = [...byBus.keys()].sort((a, b) => a - b);
+    const { trip } = data;
 
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
-    busNumbers.forEach((bus, idx) => {
+    groupRowsByBus().forEach(({ title, subtitle, rows }, idx) => {
       if (idx > 0) doc.addPage();
-      const rows = byBus.get(bus)!;
       const confirmed = rows.filter((r) => r.status === "confirmado").length;
       const pending = rows.filter((r) => r.status === "pendente").length;
       const reserved = rows.filter((r) => r.status === "reservado").length;
@@ -601,7 +634,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
 
       doc.setFontSize(11);
       doc.setTextColor(168, 82, 74);
-      doc.text(`Ônibus ${bus}`, 14, 22);
+      doc.text(`${title} · ${subtitle}`, 14, 22);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
@@ -630,7 +663,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
         ],
         body: rows.map((r, i) => [
           String(i + 1),
-          bareSeatNumber(r.seat),
+          seatNumber(r.seat),
           r.passengerName,
           r.document ?? "",
           r.phone ?? "",
@@ -664,6 +697,14 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
 
   const { trip, manifest } = data;
   const s = manifest.summary;
+  const busIds = data.layout.busIds;
+  const multiBus = busIds.length > 1;
+  // "ôn. 2" ao lado da poltrona — a POSIÇÃO do ônibus na frota (ver FleetBus).
+  const busTag = (seat: string): string | null => {
+    const position = busIds.indexOf(seatBusId(seat)) + 1;
+    if (!position) return "sem ônibus";
+    return multiBus ? `ôn. ${position}` : null;
+  };
 
   return (
     <div>
@@ -696,7 +737,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
             <Printer size={15} />
             Imprimir
           </button>
-          {trip.busCount > 1 && (
+          {multiBus && (
             <button
               onClick={printListByBus}
               className="btn-outline !px-5 !py-2.5"
@@ -706,7 +747,7 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
               Imprimir por ônibus
             </button>
           )}
-          {trip.busCount > 1 && (
+          {multiBus && (
             <button
               onClick={exportPdfByBus}
               className="btn-outline !px-5 !py-2.5"
@@ -726,6 +767,19 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
           </button>
         </div>
       </div>
+
+      {data.orphanSeats?.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-rose/30 bg-rose/10 px-5 py-4 text-sm text-rose-dark">
+          <p className="font-bold">
+            Atenção: {data.orphanSeats.length} passageiro(s) com poltrona fora
+            dos ônibus desta viagem
+          </p>
+          <p className="mt-1 text-xs">
+            Aparecem na lista abaixo marcados como "sem ônibus". Edite a venda
+            de cada um e escolha uma poltrona de um dos ônibus atuais.
+          </p>
+        </div>
+      )}
 
       {/* Resumo */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -774,11 +828,11 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
                 <tr key={`${r.bookingId}-${r.seat}`} className="hover:bg-blush-light/40">
                   <td className="px-5 py-3.5">
                     <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-rose/10 px-2 text-xs font-bold text-rose-dark">
-                      {r.seat.split("-").pop()}
+                      {seatNumber(r.seat)}
                     </span>
-                    {r.seat.includes("-") && (
+                    {busTag(r.seat) && (
                       <span className="ml-1.5 text-[10px] text-graphite/45">
-                        ôn. {r.seat.split("-")[0]}
+                        {busTag(r.seat)}
                       </span>
                     )}
                   </td>
@@ -942,6 +996,29 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
                     variant="admin"
                   />
                 </div>
+                {form.detached.length > 0 ? (
+                  <p className="mt-2 rounded-xl bg-gold/15 px-3 py-2 text-xs font-semibold text-gold-dark">
+                    {form.detached.map((p) => p.name || "Passageiro sem nome").join(", ")}{" "}
+                    {form.detached.length === 1 ? "está" : "estão"} sem poltrona —
+                    clique na poltrona de destino para {form.detached.length === 1 ? "colocá-lo(a)" : "colocá-los"} lá
+                    (nome e documento vão junto).{" "}
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, detached: [] })}
+                      className="underline underline-offset-2 hover:text-rose-dark"
+                    >
+                      Ou remover da venda
+                    </button>
+                  </p>
+                ) : (
+                  form.id && (
+                    <p className="mt-2 text-[11px] text-graphite/45">
+                      Para trocar um passageiro de poltrona (ou de ônibus):
+                      desmarque a poltrona atual e marque a nova — nome e
+                      documento vão junto.
+                    </p>
+                  )
+                )}
               </div>
 
               {sortedFormSeats.length > 0 && (
@@ -954,9 +1031,9 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
                     >
                       <span className="flex h-10 items-center gap-1.5 text-xs font-semibold text-graphite/60">
                         <span className="flex h-7 min-w-7 items-center justify-center rounded-lg bg-rose px-2 text-white">
-                          {seat.split("-").pop()}
+                          {seatNumber(seat)}
                         </span>
-                        {seat.includes("-") && `ôn.${seat.split("-")[0]}`}
+                        {busTag(seat)}
                       </span>
                       <input
                         className={inputClass}

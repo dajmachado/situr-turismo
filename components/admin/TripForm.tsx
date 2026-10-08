@@ -15,10 +15,19 @@ import {
 import type { Trip, ItineraryDay } from "@/lib/types";
 import { parseActivityTime, sortActivitiesByTime } from "@/lib/utils";
 import {
-  generateBusLayout,
-  normalizeBusModel,
   BUS_MODELS,
+  MAX_BUSES,
+  fleetCapacity,
+  fleetValidSeats,
+  generateFleetLayout,
+  nextBusId,
+  normalizeBusModel,
+  seatBusId,
+  seatNumber,
+  tripFleet,
+  uniformFleet,
   type BusModelId,
+  type FleetBus,
 } from "@/lib/bus";
 import { adminErrorMessage } from "@/lib/admin-fetch";
 import BusSeatMap from "@/components/checkout/BusSeatMap";
@@ -85,41 +94,59 @@ function Field({
 
 export default function TripForm({ trip }: { trip?: Trip }) {
   const [form, setForm] = useState<Omit<Trip, "id">>(
-    trip ?? structuredClone(emptyTrip)
+    // Na edição a frota fica sempre explícita no formulário (um item por ônibus)
+    trip ? { ...trip, buses: tripFleet(trip) } : structuredClone(emptyTrip)
   );
   const [tab, setTab] = useState<TabId>("dados");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [heldSeats, setHeldSeats] = useState<string[]>([]);
+  const [fleetError, setFleetError] = useState("");
+  const [fleetNote, setFleetNote] = useState("");
+  const [newBusModel, setNewBusModel] = useState<BusModelId>("exec46");
   const router = useRouter();
 
-  // Assentos vendidos online (reservas ativas) — não podem ser desbloqueados
+  // Poltronas com passageiro (online + balcão): não podem ser desbloqueadas e
+  // travam remover/trocar o tipo do ônibus delas. Recarrega ao voltar pra aba
+  // do navegador ou pra aba "Ônibus", porque a transferência de passageiros é
+  // feita em outra tela (Lista de Embarque) com esta aqui aberta.
+  const tripSlug = trip?.slug;
   useEffect(() => {
-    if (!trip) return;
-    fetch(`/api/checkout/seats?tripSlug=${trip.slug}`)
-      .then((r) => r.json())
-      .then((d) => setHeldSeats(d.held ?? []))
-      .catch(() => {});
-  }, [trip]);
+    if (!tripSlug) return;
+    const loadHeld = () =>
+      fetch(`/api/checkout/seats?tripSlug=${tripSlug}`)
+        .then((r) => r.json())
+        .then((d) => setHeldSeats(d.held ?? []))
+        .catch(() => {});
+    loadHeld();
+    window.addEventListener("focus", loadHeld);
+    return () => window.removeEventListener("focus", loadHeld);
+  }, [tripSlug, tab]);
 
+  // Criação: N ônibus iguais (tipo + quantidade). Edição: a lista da viagem,
+  // onde cada ônibus tem o próprio tipo.
   const busModel: BusModelId = normalizeBusModel(form.busModel);
   const busCount = form.busCount ?? 1;
-  const busLayout = useMemo(
-    () => generateBusLayout(busModel, busCount),
-    [busModel, busCount]
+  const formBuses = form.buses;
+  const fleet: FleetBus[] = useMemo(
+    () =>
+      trip
+        ? tripFleet({ buses: formBuses, busModel, busCount })
+        : uniformFleet(busModel, busCount),
+    [trip, formBuses, busModel, busCount]
   );
+  const busLayout = useMemo(() => generateFleetLayout(fleet), [fleet]);
 
   // Vagas são sempre derivadas do mapa de poltronas — nunca editadas à mão
-  const capacity = BUS_MODELS[busModel].seats * busCount;
+  const capacity = fleetCapacity(fleet);
   const occupiedCount = useMemo(
     () => new Set([...heldSeats, ...(form.blockedSeats ?? [])]).size,
     [heldSeats, form.blockedSeats]
   );
   const computedSpotsLeft = Math.max(0, capacity - occupiedCount);
 
-  // Trocar o tipo de ônibus muda o mapa inteiro (limpa bloqueios). Já mudar só
-  // a quantidade não invalida os bloqueios existentes — o ônibus 1 nunca
-  // renumera, e ônibus adicionais entram com poltronas novas (ver lib/bus.ts).
+  // Criação: trocar o tipo muda o mapa inteiro (limpa bloqueios); mudar só a
+  // quantidade não invalida os bloqueios já feitos.
   function setBusConfig(model: BusModelId, count: number) {
     setForm((f) => ({
       ...f,
@@ -127,6 +154,69 @@ export default function TripForm({ trip }: { trip?: Trip }) {
       busCount: count,
       blockedSeats: model !== f.busModel ? [] : (f.blockedSeats ?? []),
     }));
+  }
+
+  // ---- Edição: frota com um item por ônibus --------------------------------
+  // Nada aqui mexe em venda ou reserva: só muda a lista de ônibus da viagem,
+  // e o servidor ainda recusa salvar se alguma poltrona vendida ficar sem
+  // lugar. As checagens abaixo só antecipam esse aviso.
+
+  function applyFleet(next: FleetBus[]) {
+    const valid = fleetValidSeats(next);
+    setFleetError("");
+    setForm((f) => ({
+      ...f,
+      buses: next,
+      busModel: next[0].model,
+      busCount: next.length,
+      // Bloqueio em poltrona que deixou de existir não tem mais sentido
+      blockedSeats: (f.blockedSeats ?? []).filter((s) => valid.has(s)),
+    }));
+  }
+
+  function soldSeatsOfBus(busId: number): string[] {
+    return heldSeats.filter((s) => seatBusId(s) === busId);
+  }
+
+  function addBus() {
+    if (fleet.length >= MAX_BUSES) return;
+    setFleetNote("");
+    applyFleet([...fleet, { id: nextBusId(fleet), model: newBusModel }]);
+  }
+
+  function removeBus(bus: FleetBus) {
+    const position = fleet.findIndex((b) => b.id === bus.id) + 1;
+    if (fleet.length <= 1 || soldSeatsOfBus(bus.id).length > 0) return;
+    applyFleet(fleet.filter((b) => b.id !== bus.id));
+    setFleetNote(
+      position < fleet.length
+        ? `Ônibus ${position} removido. Os seguintes subiram de número (o antigo Ônibus ${position + 1} agora é o Ônibus ${position}). Os passageiros continuam nas mesmas poltronas — só o número do ônibus mudou; se já tinha lista impressa, imprima de novo.`
+        : ""
+    );
+  }
+
+  function changeBusModel(bus: FleetBus, model: BusModelId) {
+    const position = fleet.findIndex((b) => b.id === bus.id) + 1;
+    const next = fleet.map((b) => (b.id === bus.id ? { ...b, model } : b));
+    const valid = fleetValidSeats(next);
+    const stuck = soldSeatsOfBus(bus.id)
+      .filter((s) => !valid.has(s))
+      .map(seatNumber)
+      .sort((a, b) => Number(a) - Number(b));
+    setFleetNote("");
+    if (stuck.length) {
+      setFleetError(
+        `Não dá para trocar o Ônibus ${position} para "${BUS_MODELS[model].label}": ${
+          stuck.length === 1 ? "a poltrona" : "as poltronas"
+        } ${stuck.join(", ")} desse ônibus ${
+          stuck.length === 1 ? "tem passageiro e não existe" : "têm passageiro e não existem"
+        } no tipo novo. Passe ${
+          stuck.length === 1 ? "esse passageiro" : "esses passageiros"
+        } para outras poltronas na Lista de Embarque e tente de novo.`
+      );
+      return;
+    }
+    applyFleet(next);
   }
 
   function set<K extends keyof Omit<Trip, "id">>(key: K, value: Omit<Trip, "id">[K]) {
@@ -166,6 +256,11 @@ export default function TripForm({ trip }: { trip?: Trip }) {
           ...form,
           spotsTotal: capacity,
           spotsLeft: computedSpotsLeft,
+          // Edição manda a frota explícita; criação manda só tipo +
+          // quantidade e o servidor monta os N ônibus iguais.
+          ...(trip
+            ? { buses: fleet, busModel: fleet[0].model, busCount: fleet.length }
+            : { buses: undefined }),
         }),
       }
     );
@@ -174,7 +269,13 @@ export default function TripForm({ trip }: { trip?: Trip }) {
       router.push("/admin/viagens");
       router.refresh();
     } else {
-      setError(await adminErrorMessage(res, "Erro ao salvar. Tente novamente."));
+      const message = await adminErrorMessage(res, "Erro ao salvar. Tente novamente.");
+      setError(message);
+      // Recusa por causa da frota (409): mostra também junto dos ônibus
+      if (res.status === 409) {
+        setFleetError(message);
+        setTab("onibus");
+      }
     }
   }
 
@@ -364,69 +465,150 @@ export default function TripForm({ trip }: { trip?: Trip }) {
         {/* ===== ÔNIBUS ===== */}
         {tab === "onibus" && (
           <div className="space-y-6">
-            <div className="grid gap-5 md:grid-cols-2">
-              <Field label="Tipo de ônibus">
-                <select
-                  className={inputClass}
-                  value={busModel}
-                  onChange={(e) =>
-                    setBusConfig(e.target.value as BusModelId, busCount)
-                  }
-                >
-                  {Object.entries(BUS_MODELS).map(([id, m]) => (
-                    <option key={id} value={id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1.5 text-[11px] text-graphite/45">
-                  As plantas seguem os ônibus reais da SITUR.
-                </p>
-              </Field>
-              <Field label="Quantidade de ônibus">
-                {trip ? (
-                  <div>
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-graphite/15 bg-white px-4 py-2.5 text-sm">
-                      <span className="font-semibold text-graphite">
-                        {busCount} {busCount === 1 ? "ônibus" : "ônibus"} —{" "}
-                        {BUS_MODELS[busModel].seats * busCount} lugares
-                      </span>
-                      <button
-                        type="button"
-                        disabled={busCount >= 4}
-                        onClick={() => setBusConfig(busModel, busCount + 1)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-rose px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            {trip ? (
+              <div>
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                  <span className={`${labelClass} !mb-0`}>Ônibus da viagem</span>
+                  <span className="text-xs font-semibold text-graphite/55">
+                    {fleet.length} ônibus · {capacity} lugares
+                  </span>
+                </div>
+
+                <div className="divide-y divide-graphite/8 rounded-2xl border border-graphite/15 bg-white">
+                  {fleet.map((bus, i) => {
+                    const sold = soldSeatsOfBus(bus.id).length;
+                    const canRemove = fleet.length > 1 && sold === 0;
+                    return (
+                      <div
+                        key={bus.id}
+                        className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3"
                       >
-                        <Plus size={13} /> Adicionar ônibus
-                      </button>
-                    </div>
-                    <p className="mt-1.5 text-[11px] text-graphite/45">
-                      {busCount >= 4
-                        ? "Limite de 4 ônibus por viagem."
-                        : "As poltronas dos ônibus já existentes não mudam — só adiciona lugares novos. Não é possível remover um ônibus com poltronas vendidas por aqui."}
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <select
-                      className={inputClass}
-                      value={busCount}
-                      onChange={(e) => setBusConfig(busModel, Number(e.target.value))}
-                    >
-                      {[1, 2, 3, 4].map((n) => (
-                        <option key={n} value={n}>
-                          {n} {n === 1 ? "ônibus" : "ônibus"} —{" "}
-                          {BUS_MODELS[busModel].seats * n} lugares
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1.5 text-[11px] text-graphite/45">
-                      Depois de criada, dá pra adicionar mais ônibus, mas não reduzir.
-                    </p>
-                  </>
+                        <span className="w-[72px] shrink-0 text-sm font-bold text-graphite">
+                          Ônibus {i + 1}
+                        </span>
+                        <select
+                          aria-label={`Tipo do Ônibus ${i + 1}`}
+                          className={`${inputClass} min-w-[220px] flex-1`}
+                          value={bus.model}
+                          onChange={(e) =>
+                            changeBusModel(bus, e.target.value as BusModelId)
+                          }
+                        >
+                          {Object.entries(BUS_MODELS).map(([id, m]) => (
+                            <option key={id} value={id}>
+                              {m.label}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="w-[120px] shrink-0 text-xs text-graphite/55">
+                          {sold} de {BUS_MODELS[bus.model].seats} ocupadas
+                        </span>
+                        <button
+                          type="button"
+                          disabled={!canRemove}
+                          onClick={() => removeBus(bus)}
+                          aria-label={`Remover Ônibus ${i + 1}`}
+                          title={
+                            fleet.length <= 1
+                              ? "A viagem precisa ter ao menos um ônibus"
+                              : sold > 0
+                                ? `Tem ${sold} poltrona(s) com passageiro — passe-os para outro ônibus antes de remover`
+                                : "Remover este ônibus da viagem"
+                          }
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-graphite/15 px-3 py-2 text-xs font-semibold text-graphite/60 transition-colors hover:border-rose hover:text-rose disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-graphite/15 disabled:hover:text-graphite/60"
+                        >
+                          <Trash2 size={13} /> Remover
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <select
+                    aria-label="Tipo do ônibus a adicionar"
+                    className={`${inputClass} min-w-[220px] flex-1`}
+                    value={newBusModel}
+                    onChange={(e) => setNewBusModel(e.target.value as BusModelId)}
+                  >
+                    {Object.entries(BUS_MODELS).map(([id, m]) => (
+                      <option key={id} value={id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={fleet.length >= MAX_BUSES}
+                    onClick={addBus}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-rose px-4 py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Plus size={13} /> Adicionar ônibus
+                  </button>
+                </div>
+
+                {fleetError && (
+                  <p
+                    role="alert"
+                    className="mt-3 rounded-xl bg-rose/10 px-4 py-3 text-xs font-semibold text-rose-dark"
+                  >
+                    {fleetError}
+                  </p>
                 )}
-              </Field>
-            </div>
+                {fleetNote && (
+                  <p className="mt-3 rounded-xl bg-gold/15 px-4 py-3 text-xs font-semibold text-gold-dark">
+                    {fleetNote}
+                  </p>
+                )}
+                <p className="mt-2 text-[11px] leading-relaxed text-graphite/45">
+                  {fleet.length >= MAX_BUSES && `Limite de ${MAX_BUSES} ônibus por viagem. `}
+                  Cada ônibus pode ser de um tipo diferente. Trocar o tipo ou
+                  remover um ônibus só é aceito quando nenhuma poltrona com
+                  passageiro fica sem lugar — as vendas nunca são alteradas por
+                  aqui. As mudanças só valem depois de clicar em "Salvar
+                  alterações".
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-5 md:grid-cols-2">
+                <Field label="Tipo de ônibus">
+                  <select
+                    className={inputClass}
+                    value={busModel}
+                    onChange={(e) =>
+                      setBusConfig(e.target.value as BusModelId, busCount)
+                    }
+                  >
+                    {Object.entries(BUS_MODELS).map(([id, m]) => (
+                      <option key={id} value={id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-[11px] text-graphite/45">
+                    As plantas seguem os ônibus reais da SITUR.
+                  </p>
+                </Field>
+                <Field label="Quantidade de ônibus">
+                  <select
+                    className={inputClass}
+                    value={busCount}
+                    onChange={(e) => setBusConfig(busModel, Number(e.target.value))}
+                  >
+                    {[1, 2, 3, 4].map((n) => (
+                      <option key={n} value={n}>
+                        {n} {n === 1 ? "ônibus" : "ônibus"} —{" "}
+                        {BUS_MODELS[busModel].seats * n} lugares
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-[11px] text-graphite/45">
+                    Depois de criada, dá para adicionar ônibus de outros tipos
+                    ou trocar o tipo de cada um, editando a viagem.
+                  </p>
+                </Field>
+              </div>
+            )}
 
             <div className="rounded-2xl border border-graphite/10 bg-blush-light/40 p-6">
               <p className="mb-1 text-sm font-bold text-rose-dark">

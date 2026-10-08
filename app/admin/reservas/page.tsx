@@ -1,6 +1,6 @@
-import { getReservations } from "@/lib/db";
+import { getReservations, getTrips } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
-import { seatLabel } from "@/lib/bus";
+import { seatLabel, tripFleet } from "@/lib/bus";
 import { confirmationWhatsAppLink } from "@/lib/confirmation-message";
 import { MessageCircle } from "lucide-react";
 
@@ -27,8 +27,14 @@ function formatDate(iso: string): string {
 }
 
 export default async function AdminReservationsPage() {
-  const reservations = (await getReservations()).sort((a, b) =>
+  const [allReservations, trips] = await Promise.all([getReservations(), getTrips()]);
+  const reservations = allReservations.sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt)
+  );
+  // Frota de cada viagem, pra mostrar "Ônibus N" pela posição atual do ônibus
+  // (null = viagem apagada: mostra o id cru da poltrona).
+  const busIdsByTrip = new Map(
+    trips.map((t) => [t.id, tripFleet(t).map((b) => b.id)])
   );
 
   const approved = reservations.filter((r) => r.status === "approved");
@@ -89,6 +95,7 @@ export default async function AdminReservationsPage() {
             </thead>
             <tbody className="divide-y divide-graphite/6">
               {reservations.map((r) => {
+                const busIds = busIdsByTrip.get(r.tripId) ?? null;
                 const waLink =
                   r.status === "approved"
                     ? confirmationWhatsAppLink({
@@ -127,7 +134,7 @@ export default async function AdminReservationsPage() {
                             key={s}
                             className="rounded-md bg-rose/10 px-1.5 py-0.5 text-[10px] font-bold text-rose-dark"
                           >
-                            {s}
+                            {seatLabel(s, busIds)}
                           </span>
                         ))}
                       </div>
@@ -137,7 +144,7 @@ export default async function AdminReservationsPage() {
                         {r.passengerDetails.map((p) => (
                           <p key={p.seat} className="text-[11px] text-graphite/50">
                             <span className="font-semibold text-graphite/70">
-                              {seatLabel(p.seat)}
+                              {seatLabel(p.seat, busIds)}
                             </span>{" "}
                             {p.name}
                             {p.document ? ` · ${p.document}` : ""}

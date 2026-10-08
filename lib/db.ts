@@ -45,6 +45,7 @@ function tripFromRow(row: {
   busModel: string | null;
   busCount: number | null;
   blockedSeatsJson: string | null;
+  busesJson: string | null;
 }): Trip {
   return {
     id: row.id,
@@ -71,6 +72,7 @@ function tripFromRow(row: {
     busModel: (row.busModel ?? undefined) as Trip["busModel"],
     busCount: row.busCount ?? undefined,
     blockedSeats: row.blockedSeatsJson ? JSON.parse(row.blockedSeatsJson) : undefined,
+    buses: row.busesJson ? JSON.parse(row.busesJson) : undefined,
   };
 }
 
@@ -100,6 +102,7 @@ function tripToRow(t: Trip) {
     busModel: t.busModel ?? null,
     busCount: t.busCount ?? null,
     blockedSeatsJson: t.blockedSeats ? JSON.stringify(t.blockedSeats) : null,
+    busesJson: t.buses ? JSON.stringify(t.buses) : null,
   };
 }
 
