@@ -14,7 +14,12 @@ import {
 } from "lucide-react";
 import type { Trip, ItineraryDay } from "@/lib/types";
 import { parseActivityTime, sortActivitiesByTime } from "@/lib/utils";
-import { generateBusLayout, BUS_MODELS, type BusModelId } from "@/lib/bus";
+import {
+  generateBusLayout,
+  normalizeBusModel,
+  BUS_MODELS,
+  type BusModelId,
+} from "@/lib/bus";
 import { adminErrorMessage } from "@/lib/admin-fetch";
 import BusSeatMap from "@/components/checkout/BusSeatMap";
 import CurrencyInput from "@/components/CurrencyInput";
@@ -97,7 +102,7 @@ export default function TripForm({ trip }: { trip?: Trip }) {
       .catch(() => {});
   }, [trip]);
 
-  const busModel: BusModelId = form.busModel === "dd43" ? "dd43" : "exec46";
+  const busModel: BusModelId = normalizeBusModel(form.busModel);
   const busCount = form.busCount ?? 1;
   const busLayout = useMemo(
     () => generateBusLayout(busModel, busCount),

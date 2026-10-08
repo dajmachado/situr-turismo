@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTrips, saveTrips, getReservations, getManualBookings } from "@/lib/db";
-import { findOrphanedOccupiedSeats, seatLabel, type BusModelId } from "@/lib/bus";
+import { findOrphanedOccupiedSeats, normalizeBusModel, seatLabel } from "@/lib/bus";
 import type { Trip } from "@/lib/types";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -24,14 +24,9 @@ export async function PUT(request: Request, { params }: Ctx) {
   }
 
   const current = trips[index];
-  const newBusModel: BusModelId =
-    body.busModel !== undefined
-      ? body.busModel === "dd43"
-        ? "dd43"
-        : "exec46"
-      : current.busModel === "dd43"
-        ? "dd43"
-        : "exec46";
+  const currentBusModel = normalizeBusModel(current.busModel);
+  const newBusModel =
+    body.busModel !== undefined ? normalizeBusModel(body.busModel) : currentBusModel;
   const newBusCount =
     body.busCount !== undefined ? Number(body.busCount) || 1 : (current.busCount ?? 1);
 
@@ -39,7 +34,7 @@ export async function PUT(request: Request, { params }: Ctx) {
   // isso deixaria alguma venda/reserva já feita sem correspondência no novo
   // mapa (ver incidente de 24/07/2026).
   const busConfigChanged =
-    newBusModel !== (current.busModel ?? "exec46") ||
+    newBusModel !== currentBusModel ||
     newBusCount !== (current.busCount ?? 1);
 
   if (busConfigChanged) {

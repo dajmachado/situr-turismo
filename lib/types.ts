@@ -46,7 +46,7 @@ export type Trip = {
   itinerary: ItineraryDay[];
   faq: Faq[];
   featured: boolean;
-  busModel?: "dd43" | "exec46";
+  busModel?: "dd43" | "exec46" | "micro24";
   busCount?: number;
   blockedSeats?: string[];
 };

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTrips, getTripsWithLiveSpots, saveTrips } from "@/lib/db";
 import { newId, slugify } from "@/lib/utils";
+import { normalizeBusModel } from "@/lib/bus";
 import type { Trip } from "@/lib/types";
 
 export async function GET() {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     itinerary: body.itinerary ?? [],
     faq: body.faq ?? [],
     featured: body.featured ?? true,
-    busModel: body.busModel === "dd43" ? "dd43" : "exec46",
+    busModel: normalizeBusModel(body.busModel),
     busCount: Math.min(6, Math.max(1, Number(body.busCount) || 1)),
     blockedSeats: body.blockedSeats ?? [],
   };

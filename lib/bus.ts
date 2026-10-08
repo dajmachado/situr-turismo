@@ -4,14 +4,16 @@ export type SeatCell =
   | { type: "seat"; id: string; number: string }
   | { type: "aisle" }
   | { type: "empty" }
-  | { type: "feature"; label: string; wide?: boolean };
+  // `width` (px) só pra quando o item não cabe nos dois tamanhos padrão
+  // (1 poltrona / 2 poltronas) — ex.: geladeira no fim do corredor.
+  | { type: "feature"; label: string; wide?: boolean; width?: number };
 
 export type BusDeck = { name: string; rows: SeatCell[][] };
 export type BusLayout = { decks: BusDeck[]; totalSeats: number };
 
-export type BusModelId = "dd43" | "exec46";
+export type BusModelId = "dd43" | "exec46" | "micro24";
 
-type RawCell = number | null | { f: string; wide?: boolean };
+type RawCell = number | null | { f: string; wide?: boolean; width?: number };
 
 /** Converte a definição enxuta da planta em células (null = corredor). */
 function row(cells: RawCell[], seatId: (n: number) => string): SeatCell[] {
@@ -19,7 +21,7 @@ function row(cells: RawCell[], seatId: (n: number) => string): SeatCell[] {
     if (c === null) return { type: "aisle" };
     if (typeof c === "number")
       return { type: "seat", id: seatId(c), number: String(c) };
-    return { type: "feature", label: c.f, wide: c.wide };
+    return { type: "feature", label: c.f, wide: c.wide, width: c.width };
   });
 }
 
@@ -74,16 +76,50 @@ function buildExec46(seatId: (n: number) => string): BusDeck[] {
   return [{ name: "", rows }];
 }
 
+/**
+ * Planta 3 — Micro-ônibus (Marcopolo Sênior): 24 lugares em 1 andar, 2+2.
+ * Numeração igual à planta impressa: na esquerda o PAR fica na janela
+ * (02 | 01), na direita o ímpar fica no corredor (05 | 06). A 1ª fileira só
+ * existe do lado esquerdo — do direito fica a porta. No fundo, geladeira no
+ * fim do corredor e WC no lugar das duas últimas poltronas da direita.
+ */
+function buildMicro24(seatId: (n: number) => string): BusDeck[] {
+  const rows: SeatCell[][] = [];
+  rows.push(row([{ f: "Motorista", wide: true }, null, { f: "Guia", wide: true }], seatId));
+  rows.push(row([2, 1, null, { f: "Entrada", wide: true }], seatId));
+  for (let i = 0; i < 5; i++) {
+    const n = 4 * i + 3;
+    rows.push(row([n + 1, n, null, n + 2, n + 3], seatId));
+  }
+  // Geladeira (36) + WC (64) ocupam exatamente corredor + 2 poltronas (108px
+  // com os espaçamentos), então a fileira fecha alinhada com as de cima.
+  rows.push(row([24, 23, { f: "Gelad." }, { f: "WC", width: 64 }], seatId));
+  return [{ name: "", rows }];
+}
+
 export const BUS_MODELS: Record<
   BusModelId,
   { label: string; seats: number; build: (seatId: (n: number) => string) => BusDeck[] }
 > = {
   dd43: { label: "Leito DD — 43 lugares (2 andares)", seats: 43, build: buildDd43 },
   exec46: { label: "Executivo — 46 lugares", seats: 46, build: buildExec46 },
+  micro24: { label: "Micro-ônibus — 24 lugares", seats: 24, build: buildMicro24 },
 };
 
+/**
+ * Qualquer valor desconhecido/ausente cai no Executivo 46 (padrão histórico).
+ * Ponto único dessa decisão — antes ficava espalhada em comparações com
+ * "dd43", e um modelo novo viraria Executivo 46 sem ninguém perceber.
+ */
+export function normalizeBusModel(value: unknown): BusModelId {
+  return typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(BUS_MODELS, value)
+    ? (value as BusModelId)
+    : "exec46";
+}
+
 export function tripBusModel(trip: Trip): BusModelId {
-  return trip.busModel === "dd43" ? "dd43" : "exec46";
+  return normalizeBusModel(trip.busModel);
 }
 
 export function tripBusCount(trip: Trip): number {

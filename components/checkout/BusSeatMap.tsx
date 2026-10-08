@@ -84,6 +84,7 @@ export default function BusSeatMap({
                             className={`flex h-9 items-center justify-center rounded-lg bg-graphite/8 px-1 text-[8px] font-semibold uppercase tracking-wide text-graphite/45 ${
                               cell.wide ? "w-[80px]" : "w-9"
                             }`}
+                            style={cell.width ? { width: cell.width } : undefined}
                           >
                             {cell.label}
                           </span>
