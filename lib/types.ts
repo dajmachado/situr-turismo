@@ -167,6 +167,21 @@ export type Reservation = {
   status: "pending" | "approved" | "rejected" | "cancelled";
   spotsCounted: boolean;
   createdAt: string;
+  /** Trocas de poltrona feitas pelo admin depois da compra (mais antiga primeiro). */
+  seatChanges?: SeatChange[];
+};
+
+/**
+ * Registro de uma troca de poltrona numa reserva online. Guarda também o
+ * texto como aparecia na hora ("Ônibus 2 · polt. 15"), porque o ônibus de
+ * origem pode ser removido da viagem depois e o id sozinho deixa de dizer algo.
+ */
+export type SeatChange = {
+  at: string; // ISO
+  from: string[];
+  to: string[];
+  fromLabel: string;
+  toLabel: string;
 };
 
 export type ExpenseCategory =

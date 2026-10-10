@@ -152,6 +152,13 @@ export default async function AdminReservationsPage() {
                         ))}
                       </div>
                     ) : null}
+                    {/* Só o "antes": a poltrona atual é a que aparece acima, e o
+                        número do ônibus dela pode ter mudado desde a troca. */}
+                    {r.seatChanges?.map((c) => (
+                      <p key={c.at} className="mt-1.5 text-[11px] text-gold-dark">
+                        Poltrona trocada em {formatDate(c.at)} — antes: {c.fromLabel}
+                      </p>
+                    ))}
                   </td>
                   <td className="px-6 py-4 font-semibold text-graphite">
                     {formatPrice(r.amount)}

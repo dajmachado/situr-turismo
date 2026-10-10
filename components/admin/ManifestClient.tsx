@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowLeftRight,
   Plus,
   Printer,
   Download,
@@ -112,6 +113,18 @@ type FormState = {
   newPaymentNotes: string;
 };
 
+/**
+ * Troca de poltrona de uma reserva online. Cada passageiro guarda de onde
+ * saiu (`from`) e onde está agora (`to`; null = tirado da poltrona, esperando
+ * o clique no destino). Nome e documento são só para mostrar: o servidor
+ * recebe apenas os pares de/para.
+ */
+type TransferState = {
+  reservationId: string;
+  buyerName: string;
+  passengers: { from: string; name: string; document?: string; to: string | null }[];
+};
+
 function emptyForm(): FormState {
   return {
     buyerName: "",
@@ -147,6 +160,11 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
+  // Troca de poltrona de reserva feita pelo site (ver openTransfer)
+  const [transfer, setTransfer] = useState<TransferState | null>(null);
+  const [transferError, setTransferError] = useState("");
+  const [transferSaving, setTransferSaving] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/manifest?tripId=${tripId}`);
@@ -406,6 +424,98 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
     } else {
       setModalError(await adminErrorMessage(res, "Erro ao salvar."));
     }
+  }
+
+  // ---- Troca de poltrona de reserva online ---------------------------------
+  // A reserva do site não pode ser editada nem excluída pelo painel; a única
+  // coisa que muda aqui é a poltrona (ou o ônibus) de cada passageiro.
+
+  function openTransfer(reservationId: string) {
+    if (!data) return;
+    const rows = data.manifest.rows.filter(
+      (r) => !r.isManual && r.bookingId === reservationId
+    );
+    if (rows.length === 0) return;
+    setTransferError("");
+    setNotice("");
+    setTransfer({
+      reservationId,
+      buyerName: rows[0].buyerName,
+      passengers: rows.map((r) => ({
+        from: r.seat,
+        name: r.passengerName,
+        document: r.document,
+        to: r.seat,
+      })),
+    });
+  }
+
+  function transferToggleSeat(seat: string) {
+    if (!transfer) return;
+    setTransferError("");
+    const { passengers } = transfer;
+    const seated = passengers.findIndex((p) => p.to === seat);
+    if (seated !== -1) {
+      // Clicou na poltrona de alguém da reserva: tira a pessoa de lá
+      setTransfer({
+        ...transfer,
+        passengers: passengers.map((p, i) => (i === seated ? { ...p, to: null } : p)),
+      });
+      return;
+    }
+    // Clicou numa poltrona livre: vai quem está esperando; se a reserva tem
+    // um passageiro só, não precisa tirá-lo antes — é ele mesmo.
+    let mover = passengers.findIndex((p) => p.to === null);
+    if (mover === -1 && passengers.length === 1) mover = 0;
+    if (mover === -1) {
+      setTransferError(
+        "Primeiro clique na poltrona atual de quem você quer mover; depois, na poltrona de destino."
+      );
+      return;
+    }
+    setTransfer({
+      ...transfer,
+      passengers: passengers.map((p, i) => (i === mover ? { ...p, to: seat } : p)),
+    });
+  }
+
+  async function saveTransfer() {
+    if (!transfer) return;
+    if (transfer.passengers.some((p) => p.to === null)) {
+      setTransferError("Escolha a poltrona de destino de todos os passageiros.");
+      return;
+    }
+    const moves = transfer.passengers
+      .filter((p) => p.to !== p.from)
+      .map((p) => ({ from: p.from, to: p.to as string }));
+    if (moves.length === 0) {
+      setTransfer(null);
+      return;
+    }
+    setTransferSaving(true);
+    setTransferError("");
+    const res = await fetch(
+      `/api/admin/reservations/${transfer.reservationId}/seats`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moves }),
+      }
+    );
+    setTransferSaving(false);
+    if (!res.ok) {
+      setTransferError(await adminErrorMessage(res, "Erro ao trocar a poltrona."));
+      return;
+    }
+    const numberChanged = moves.some((m) => seatNumber(m.from) !== seatNumber(m.to));
+    setNotice(
+      `Poltrona de ${transfer.buyerName} trocada.` +
+        (numberChanged
+          ? " O número da poltrona mudou: a confirmação que o cliente recebeu mostra o número antigo — use o botão do WhatsApp na linha dele para reenviar."
+          : "")
+    );
+    setTransfer(null);
+    load();
   }
 
   async function remove(booking: ManualBooking) {
@@ -705,6 +815,9 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
     if (!position) return "sem ônibus";
     return multiBus ? `ôn. ${position}` : null;
   };
+  // Texto completo: "Ônibus 2 · polt. 15" ou, com um ônibus só, "Poltrona 15"
+  const seatText = (seat: string): string =>
+    multiBus ? seatLabel(seat, busIds) : `Poltrona ${seatNumber(seat)}`;
 
   return (
     <div>
@@ -768,6 +881,19 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
         </div>
       </div>
 
+      {notice && (
+        <div className="mb-6 flex items-start justify-between gap-3 rounded-2xl border border-[#1a9b60]/25 bg-[#1a9b60]/10 px-5 py-4 text-sm text-[#147a4b]">
+          <p>{notice}</p>
+          <button
+            onClick={() => setNotice("")}
+            aria-label="Fechar aviso"
+            className="shrink-0 text-[#147a4b]/60 hover:text-[#147a4b]"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
       {data.orphanSeats?.length > 0 && (
         <div className="mb-6 rounded-2xl border border-rose/30 bg-rose/10 px-5 py-4 text-sm text-rose-dark">
           <p className="font-bold">
@@ -776,7 +902,8 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
           </p>
           <p className="mt-1 text-xs">
             Aparecem na lista abaixo marcados como "sem ônibus". Edite a venda
-            de cada um e escolha uma poltrona de um dos ônibus atuais.
+            de cada um (ou, se for reserva do site, use o botão de trocar
+            poltrona) e escolha uma poltrona de um dos ônibus atuais.
           </p>
         </div>
       )}
@@ -924,9 +1051,14 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
                           </button>
                         </>
                       ) : (
-                        !waLink && (
-                          <span className="text-[11px] text-graphite/35">site</span>
-                        )
+                        <button
+                          onClick={() => openTransfer(r.bookingId)}
+                          title="Trocar de poltrona ou de ônibus (reserva feita pelo site)"
+                          aria-label={`Trocar a poltrona de ${r.passengerName}`}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-graphite/45 hover:bg-blush hover:text-rose-dark"
+                        >
+                          <ArrowLeftRight size={14} />
+                        </button>
                       )}
                     </div>
                   </td>
@@ -1407,6 +1539,110 @@ export default function ManifestClient({ tripId }: { tripId: string }) {
                 >
                   {saving && <Loader2 size={15} className="animate-spin" />}
                   {form.id ? "Salvar alterações" : "Registrar venda"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de troca de poltrona de reserva online */}
+      {transfer && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-graphite/60 p-2 backdrop-blur-sm sm:p-4">
+          <div className="my-4 w-full max-w-3xl rounded-3xl bg-white p-5 shadow-lifted sm:my-8 sm:p-8">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-graphite">
+                Trocar poltrona — reserva online
+              </h2>
+              <button
+                onClick={() => setTransfer(null)}
+                aria-label="Fechar"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-graphite/45 hover:bg-blush"
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <p className="mb-5 text-xs text-graphite/55">
+              Compra de <strong className="text-graphite">{transfer.buyerName}</strong> pelo
+              site. Só a poltrona muda — pagamento, valor e dados do cliente
+              continuam como estão, e a troca fica registrada na reserva.
+            </p>
+
+            <div className="space-y-5">
+              <div className="space-y-2">
+                {transfer.passengers.map((p) => (
+                  <div
+                    key={p.from}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-graphite/10 px-4 py-3 text-sm"
+                  >
+                    <span className="font-semibold text-graphite">{p.name}</span>
+                    {p.document && (
+                      <span className="text-xs text-graphite/45">{p.document}</span>
+                    )}
+                    <span className="ml-auto flex items-center gap-2 text-xs">
+                      <span className="text-graphite/55">{seatText(p.from)}</span>
+                      <ArrowLeftRight size={12} className="text-graphite/35" />
+                      {p.to === null ? (
+                        <span className="rounded-md bg-gold/15 px-2 py-1 font-semibold text-gold-dark">
+                          clique na poltrona de destino
+                        </span>
+                      ) : p.to === p.from ? (
+                        <span className="text-graphite/45">sem mudança</span>
+                      ) : (
+                        <span className="rounded-md bg-rose/10 px-2 py-1 font-bold text-rose-dark">
+                          {seatText(p.to)}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <label className={labelClass}>Mapa de poltronas</label>
+                <div className="overflow-x-auto rounded-2xl border border-graphite/10 bg-blush-light/40 p-4">
+                  <BusSeatMap
+                    layout={data.layout}
+                    active={transfer.passengers
+                      .map((p) => p.to)
+                      .filter((s): s is string => s !== null)}
+                    occupied={data.occupied.filter(
+                      (s) => !transfer.passengers.some((p) => p.from === s)
+                    )}
+                    onToggle={transferToggleSeat}
+                    variant="checkout"
+                  />
+                </div>
+                <p className="mt-2 text-[11px] text-graphite/45">
+                  {transfer.passengers.length === 1
+                    ? "Clique na poltrona de destino (as marcadas como ocupadas não podem ser escolhidas)."
+                    : "Clique na poltrona atual de quem vai mudar e, em seguida, na poltrona de destino."}
+                </p>
+              </div>
+
+              {transferError && (
+                <p role="alert" className="text-xs font-semibold text-rose">
+                  {transferError}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setTransfer(null)}
+                  className="rounded-full px-6 py-3 text-sm font-semibold text-graphite/55 hover:text-graphite"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={saveTransfer}
+                  disabled={
+                    transferSaving ||
+                    transfer.passengers.every((p) => p.to === p.from)
+                  }
+                  className="btn-primary disabled:opacity-60"
+                >
+                  {transferSaving && <Loader2 size={15} className="animate-spin" />}
+                  Confirmar troca
                 </button>
               </div>
             </div>

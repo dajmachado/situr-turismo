@@ -87,6 +87,9 @@ model Reservation {
   status               String
   spotsCounted         Boolean @default(false)
   createdAt            String
+  // Histórico de trocas de poltrona feitas pelo admin ([{at, from, to, ...}]).
+  // Nulo enquanto a reserva estiver nas poltronas que o cliente escolheu.
+  seatChangesJson      String?
 }
 
 model Customer {

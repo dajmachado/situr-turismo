@@ -10,6 +10,8 @@ import type {
   Expense,
   PaymentMethod,
   ExpenseCategory,
+  PassengerDetail,
+  SeatChange,
 } from "./types";
 import { occupiedSeatsForTrip, tripCapacity } from "./bus";
 
@@ -201,6 +203,7 @@ function reservationFromRow(row: {
   status: string;
   spotsCounted: boolean;
   createdAt: string;
+  seatChangesJson: string | null;
 }): Reservation {
   return {
     id: row.id,
@@ -223,6 +226,7 @@ function reservationFromRow(row: {
     status: row.status as Reservation["status"],
     spotsCounted: row.spotsCounted,
     createdAt: row.createdAt,
+    seatChanges: row.seatChangesJson ? JSON.parse(row.seatChangesJson) : undefined,
   };
 }
 
@@ -248,6 +252,7 @@ function reservationToRow(r: Reservation) {
     status: r.status,
     spotsCounted: r.spotsCounted,
     createdAt: r.createdAt,
+    seatChangesJson: r.seatChanges?.length ? JSON.stringify(r.seatChanges) : null,
   };
 }
 
@@ -480,6 +485,34 @@ export async function saveReservations(items: Reservation[]): Promise<void> {
     prisma.reservation.deleteMany(),
     ...(rows.length ? [prisma.reservation.createMany({ data: rows })] : []),
   ]);
+}
+
+/**
+ * Troca as poltronas de UMA reserva e registra a troca no histórico dela.
+ * Atualiza só essa linha e só esses três campos — pagamento, valor, status e
+ * dados do cliente não passam por aqui. De propósito NÃO usa
+ * saveReservations(): aquela regrava a tabela inteira a partir de uma leitura
+ * anterior e poderia desfazer uma reserva criada no meio do caminho.
+ */
+export async function updateReservationSeats(
+  id: string,
+  data: {
+    seats: string[];
+    passengerDetails?: PassengerDetail[];
+    seatChanges: SeatChange[];
+  }
+): Promise<Reservation> {
+  const row = await prisma.reservation.update({
+    where: { id },
+    data: {
+      seatsJson: JSON.stringify(data.seats),
+      passengerDetailsJson: data.passengerDetails
+        ? JSON.stringify(data.passengerDetails)
+        : null,
+      seatChangesJson: JSON.stringify(data.seatChanges),
+    },
+  });
+  return reservationFromRow(row);
 }
 
 export async function getCustomers(): Promise<Customer[]> {
