@@ -48,6 +48,8 @@ function tripFromRow(row: {
   busCount: number | null;
   blockedSeatsJson: string | null;
   busesJson: string | null;
+  videoUrl: string | null;
+  videoPoster: string | null;
 }): Trip {
   return {
     id: row.id,
@@ -75,6 +77,8 @@ function tripFromRow(row: {
     busCount: row.busCount ?? undefined,
     blockedSeats: row.blockedSeatsJson ? JSON.parse(row.blockedSeatsJson) : undefined,
     buses: row.busesJson ? JSON.parse(row.busesJson) : undefined,
+    videoUrl: row.videoUrl ?? undefined,
+    videoPoster: row.videoPoster ?? undefined,
   };
 }
 
@@ -105,6 +109,8 @@ function tripToRow(t: Trip) {
     busCount: t.busCount ?? null,
     blockedSeatsJson: t.blockedSeats ? JSON.stringify(t.blockedSeats) : null,
     busesJson: t.buses ? JSON.stringify(t.buses) : null,
+    videoUrl: t.videoUrl || null,
+    videoPoster: t.videoPoster || null,
   };
 }
 

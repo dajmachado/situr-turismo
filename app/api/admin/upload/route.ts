@@ -9,6 +9,11 @@ const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/av
 const MAX_SIZE = 15 * 1024 * 1024;
 const MAX_WIDTH = 1920;
 const WEBP_QUALITY = 82;
+// Vídeo vai como veio (não há ffmpeg no servidor). Só MP4: é o formato que
+// toca em todos os navegadores; vídeo .mov de iPhone (HEVC) não abre no
+// Chrome/Android — repassado pelo WhatsApp ele já chega em MP4.
+// O limite de corpo da requisição foi elevado em next.config.ts.
+const MAX_VIDEO_SIZE = 80 * 1024 * 1024;
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -17,6 +22,33 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
   }
+
+  if (formData.get("kind") === "video") {
+    if (file.type !== "video/mp4") {
+      return NextResponse.json(
+        { error: "Envie o vídeo em MP4. Dica: vídeo de iPhone (.mov) repassado pelo WhatsApp já chega em MP4." },
+        { status: 400 }
+      );
+    }
+    if (file.size > MAX_VIDEO_SIZE) {
+      return NextResponse.json(
+        { error: "Vídeo muito grande (máx. 80 MB)." },
+        { status: 400 }
+      );
+    }
+    const buffer = Buffer.from(await file.arrayBuffer());
+    if (buffer.length !== file.size) {
+      return NextResponse.json(
+        { error: "O vídeo chegou incompleto. Tente de novo." },
+        { status: 400 }
+      );
+    }
+    await fs.mkdir(UPLOADS_DIR, { recursive: true });
+    const fileName = `${newId()}.mp4`;
+    await fs.writeFile(path.join(UPLOADS_DIR, fileName), buffer);
+    return NextResponse.json({ url: `/uploads/${fileName}` }, { status: 201 });
+  }
+
   if (!ALLOWED.includes(file.type)) {
     return NextResponse.json(
       { error: "Formato inválido. Use JPG, PNG, WebP, GIF ou AVIF." },

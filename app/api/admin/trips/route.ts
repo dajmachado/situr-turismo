@@ -54,6 +54,8 @@ export async function POST(request: Request) {
     blockedSeats: (Array.isArray(body.blockedSeats) ? body.blockedSeats : [])
       .map(String)
       .filter((s) => validSeats.has(s)),
+    videoUrl: body.videoUrl || undefined,
+    videoPoster: body.videoPoster || undefined,
   };
 
   if (trips.some((t) => t.slug === trip.slug)) {

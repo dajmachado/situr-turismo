@@ -23,6 +23,7 @@ import {
 import { formatPrice } from "@/lib/utils";
 import { whatsappLink } from "@/lib/site-config";
 import TripGallery from "@/components/TripGallery";
+import TripVideo from "@/components/TripVideo";
 import Itinerary from "@/components/Itinerary";
 import FaqAccordion from "@/components/FaqAccordion";
 import Testimonials from "@/components/Testimonials";
@@ -134,6 +135,22 @@ export default async function TripPage({ params }: Props) {
               </p>
             </div>
           </Reveal>
+
+          {trip.videoUrl && (
+            <Reveal>
+              <div>
+                <p className="section-label">Em vídeo</p>
+                <h2 className="heading-display mb-8 !text-2xl sm:!text-3xl">
+                  Veja o destino de perto
+                </h2>
+                <TripVideo
+                  src={trip.videoUrl}
+                  poster={trip.videoPoster}
+                  title={trip.title}
+                />
+              </div>
+            </Reveal>
+          )}
 
           {trip.gallery.length > 0 && (
             <Reveal>

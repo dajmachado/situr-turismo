@@ -34,6 +34,7 @@ import BusSeatMap from "@/components/checkout/BusSeatMap";
 import CurrencyInput from "@/components/CurrencyInput";
 import DateField from "./DateField";
 import ImageUploader from "./ImageUploader";
+import VideoUploader from "./VideoUploader";
 
 const emptyTrip: Omit<Trip, "id"> = {
   slug: "",
@@ -458,6 +459,61 @@ export default function TripForm({ trip }: { trip?: Trip }) {
                 label="Adicionar foto à galeria"
                 onUploaded={(url) => set("gallery", [...form.gallery, url])}
               />
+            </div>
+
+            <div>
+              <label className={labelClass}>Vídeo promocional (opcional)</label>
+              <p className="mb-3 text-xs text-graphite/55">
+                Aparece na página da viagem, logo depois de "Sobre a viagem".
+              </p>
+              {form.videoUrl && (
+                <div className="mb-3 flex flex-wrap items-start gap-4">
+                  <video
+                    src={form.videoUrl}
+                    poster={form.videoPoster || undefined}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="max-h-64 max-w-full rounded-2xl bg-graphite"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, videoUrl: "", videoPoster: "" }))}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-graphite/15 px-3 py-2 text-xs font-semibold text-graphite/60 transition-colors hover:border-rose hover:text-rose"
+                  >
+                    <Trash2 size={13} /> Tirar o vídeo
+                  </button>
+                </div>
+              )}
+              <VideoUploader
+                label={form.videoUrl ? "Trocar vídeo" : "Enviar vídeo"}
+                onUploaded={(url) => set("videoUrl", url)}
+              />
+              {form.videoUrl && (
+                <div className="mt-4">
+                  <label className={labelClass}>Capa do vídeo (opcional)</label>
+                  <p className="mb-3 text-xs text-graphite/55">
+                    Imagem mostrada antes do play. Use uma foto no mesmo formato do
+                    vídeo (deitado, de preferência).
+                  </p>
+                  {form.videoPoster && (
+                    <div className="relative mb-3 h-36 w-56 overflow-hidden rounded-xl">
+                      <Image src={form.videoPoster} alt="Capa do vídeo" fill sizes="224px" className="object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => set("videoPoster", "")}
+                        className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-graphite/70 text-white transition-colors hover:bg-rose"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
+                  <ImageUploader
+                    label={form.videoPoster ? "Trocar capa do vídeo" : "Adicionar capa do vídeo"}
+                    onUploaded={(url) => set("videoPoster", url)}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}

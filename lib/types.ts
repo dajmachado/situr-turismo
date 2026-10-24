@@ -55,6 +55,10 @@ export type Trip = {
   busModel?: "dd43" | "exec46" | "micro24";
   busCount?: number;
   blockedSeats?: string[];
+  /** Vídeo promocional (MP4 em /uploads) mostrado na página da viagem. */
+  videoUrl?: string;
+  /** Imagem mostrada no lugar do vídeo até o visitante clicar em play. */
+  videoPoster?: string;
 };
 
 export type PassengerDetail = {
